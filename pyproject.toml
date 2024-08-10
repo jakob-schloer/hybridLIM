@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "hybridlim"
+version = "0.1.0"
+description = "Hybrid LIM for ENSO forecasting."
+authors = ["Jakob Schloer <jakob.schloer@uni-tuebingen.de>"]
+license = "Creative Commons Attribution 4.0 International"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = "^2.4.0"
+ipython = "^8.26.0"
+jupyter = "^1.0.0"
+xarray = "^2024.7.0"
+netCDF4 = "^1.7.1.post2"
+pandas = "^2.2.2"
+numpy = "^2.0.1"
+matplotlib = "^3.9.1.post1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
