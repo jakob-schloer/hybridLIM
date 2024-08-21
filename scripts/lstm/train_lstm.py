@@ -55,6 +55,7 @@ def make_args(ipython=False):
             # Saving
             postfix="_test",
             path=PATH + f"/../../models/lstm/",
+            evaluate=True,
         )
     else:
         parser = argparse.ArgumentParser()
@@ -100,6 +101,7 @@ def make_args(ipython=False):
                             type=str, help='Modelpath.')
         parser.add_argument('-postfix', '--postfix', default="", type=str,
                         help="Postfix to model folder, e.g. '_id_1'.")
+        parser.add_argument('-eval', '--evaluate', action='store_true', help='Evaluate model.')
 
         config = vars(parser.parse_args())
 
@@ -319,4 +321,15 @@ ax.set_ylabel('loss')
 ax.legend()
 
 plt.savefig(model_path + f"/loss.png", dpi=300, bbox_inches='tight')
+
+# %%
+# Evaluate model
+# ======================================================================================
+from eval_lstm import perform_hindcast_evaluation
+if config['evaluate']:
+    checkpoint = torch.load(model_path + "/min_checkpoint.pt")
+    lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
+    perform_hindcast_evaluation(
+        model, checkpoint, ds, dataloaders['test'], scaler_pca, combined_eof, lag_arr, model_path + "/metrics"
+    )
 

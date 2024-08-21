@@ -183,6 +183,67 @@ def evaluation_metric(z_hindcast: np.ndarray,
     
     return grid_scores, time_scores, nino_ids 
 
+
+def perform_hindcast_evaluation(model: torch.nn.Module, 
+                                checkpoint: dict, 
+                                ds: xr.Dataset, 
+                                dataloader: torch.utils.data.DataLoader,
+                                scaler_pca: preproc.Normalizer, 
+                                combined_eof: eof.CombinedEOF, 
+                                lag_arr: list, 
+                                scorepath: str):
+    """ Perform hindcast and compute verification metrics for LSTM model.
+
+    Args:
+        model (torch.nn.Module): LSTM model
+        checkpoint (dict): Checkpoint of model
+        ds (xr.Dataset): Dataset
+        dataloader (torch.utils.data.DataLoader): Dataloader
+        scaler_pca (preproc.Normalizer): Normalizer for PCA space
+        combined_eof (eof.CombinedEOF): Combined EOF object
+        lag_arr (list): List of lags to compute metrics for
+        scorepath (str): Path to save metrics
+    """
+    model.load_state_dict(checkpoint['model_state_dict'])
+    device= torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    _ = model.to(device)
+
+    # Hindcast in latent space
+    z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device,
+                                    history=4, horizon=24)
+
+    # Extended PCA with 300 components 
+    n_components_full = 300 
+    eofa_list = []
+    for i, var in enumerate(ds.data_vars):
+        print(f"Create extended EOF of {var}!", flush=True)
+        eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components=n_components_full, )
+        eofa.fit(ds[var])
+        eofa_list.append(eofa)
+    extended_eof = eof.CombinedEOF(eofa_list, vars=list(ds.data_vars))
+
+    # Verification metrics
+    times = dataloader.dataset.dataarray['time'].data
+    ds_target = ds.sel(time=times)
+    verification_per_gridpoint, verification_per_time, nino_indices = evaluation_metric(
+        z_hindcast['frcst'], time_idx, times, combined_eof, ds_target, lag_arr, extended_eof  
+    )
+
+    # Save metrics to file
+    print("Save metrics to file!", flush=True)
+    if not os.path.exists(scorepath):
+        os.makedirs(scorepath)
+
+    for key, score in verification_per_gridpoint.items():
+        score.to_netcdf(scorepath + f"/gridscore_{key}_{params['datasplit']}.nc")
+    for key, score in verification_per_time.items():
+        score.to_netcdf(scorepath + f"/timescore_{key}_{params['datasplit']}.nc")
+    for key, nino_idx in nino_indices.items():
+        nino_idx.to_netcdf(scorepath + f"/nino_{key}_{params['datasplit']}.nc")
+
+    return None
+
+
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-path', '--model_path', type=str, required=True, help='Path to model')
@@ -192,14 +253,8 @@ def argument_parser():
     params = vars(parser.parse_args())
     return params
 
-def main():
-    """Main function to perform hindcast and compute verification metrics.
-    
-    e.g.
-    params = {'model_path': f'{PATH}/../../models/lstm/589593_CSLSTM_eof_[20, 10]_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent64_cosinelr0.005-5e-06_bs64',
-              'datasplit': 'val',
-              'lags': [1, 12]}
-    """
+if __name__ == '__main__':
+    # Specify parameters
     params = argument_parser()
     with open(params['model_path'] + "/config.json", 'r') as f:
         config = json.load(f)
@@ -215,44 +270,10 @@ def main():
 
     # Load model with best loss
     checkpoint = torch.load(params['model_path'] + "/min_checkpoint.pt")
-    model.load_state_dict(checkpoint['model_state_dict'])
-    device= torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    _ = model.to(device)
 
-    # Hindcast in latent space
-    z_hindcast, time_idx = hindcast(model, dataloaders[params['datasplit']], scaler_pca, device,
-                                    history=4, horizon=24)
-
-    # Extended PCA with 300 components 
-    n_components_full = 300 
-    eofa_list = []
-    for i, var in enumerate(ds.data_vars):
-        print(f"Create extended EOF of {var}!", flush=True)
-        eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components=n_components_full, )
-        eofa.fit(ds[var])
-        eofa_list.append(eofa)
-    extended_eof = eof.CombinedEOF(eofa_list, vars=list(ds.data_vars))
-
-    # Verification metrics
-    times = datasets[params['datasplit']].dataarray['time'].data
-    ds_target = ds.sel(time=times)
     lag_arr = [int(lag) for lag in params['lags']]
-    verification_per_gridpoint, verification_per_time, nino_indices = evaluation_metric(
-        z_hindcast['frcst'], time_idx, times, combined_eof, ds_target, lag_arr, extended_eof  
-    )
+    scorepath = params['model_path'] + "/metrics"
+    perform_hindcast_evaluation(
+        model, checkpoint, ds, dataloaders[params['datasplit']], scaler_pca, combined_eof, lag_arr, scorepath
+    ) 
 
-    # Save metrics to file
-    print("Save metrics to file!", flush=True)
-    storepath = params['model_path'] + "/metrics"
-    if not os.path.exists(storepath):
-        os.makedirs(storepath)
-
-    for key, score in verification_per_gridpoint.items():
-        score.to_netcdf(storepath + f"/gridscore_{key}_{params['datasplit']}.nc")
-    for key, score in verification_per_time.items():
-        score.to_netcdf(storepath + f"/timescore_{key}_{params['datasplit']}.nc")
-    for key, nino_idx in nino_indices.items():
-        nino_idx.to_netcdf(storepath + f"/nino_{key}_{params['datasplit']}.nc")
-
-if __name__ == '__main__':
-    main()
