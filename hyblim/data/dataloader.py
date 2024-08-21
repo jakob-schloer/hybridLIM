@@ -36,51 +36,46 @@ class ForConvolution(object):
         return sample
 
 
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-    def __call__(self, sample):
-        torch_sample = sample
-        for key in sample.keys():
-            try:
-                torch_sample[key] = torch.from_numpy(sample[key]).float()
-            except:
-                None
-        
-        return torch_sample
-
-
 ############################################
 # Dataclasses 
 ############################################
+def _to_tensor(sample: dict):
+    """ Impute NaNs and convert numpy arrays to torch tensors."""
+    for key, value in sample.items():
+        if isinstance(value, np.ndarray):
+            value = np.nan_to_num(value, copy=False, nan=0.0)
+            sample[key] = torch.from_numpy(value).float()
+        elif isinstance(value, int):
+            sample[key] = torch.tensor(value).float()
+        elif isinstance(value, list):
+            sample[key] = torch.tensor(value).float()
+        else:
+            continue
+    return sample
+
+
 class TimeSeries(Dataset):
     def __init__(self, dataarray, n_timesteps, transform=None):
-        self.transform = transform
         self.dataarray = dataarray.compute()
-
         self.n_timesteps = n_timesteps
-
-
+        self.transform = transform
+    
     def __len__(self):
         return len(self.dataarray['time']) - self.n_timesteps - 1
-
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
         x_interval = self.dataarray.isel(time=slice(idx, idx+self.n_timesteps))
-        # One hot encoding of month
-        idx_month = x_interval['time'].dt.month.data.astype(int) - 1
-        one_hot_month = np.zeros((len(idx_month), 12))
-        one_hot_month[np.arange(len(idx_month)), idx_month] = 1
-
+        month = x_interval['time'].dt.month.data.astype(int) - 1
         
-        sample = {
-            'x':   x_interval.data.T,
+        sample = _to_tensor({
+            'x':   x_interval.data,
             'time': preproc.time2timestamp(x_interval['time'].data),
-            'month': one_hot_month,
+            'month': month,
             'idx': np.arange(idx, idx+self.n_timesteps)
-        }
+        })
 
         if self.transform:
             sample = self.transform(sample)
@@ -117,36 +112,22 @@ class TimeSeriesResidual(Dataset):
             idx = idx.tolist()
 
         sample = {}
-        # Input
         sample['lim'] = self.lim_ensemble.isel(time=idx).data
-        
-        # Target
         ids_target = idx + self.lag_arr
-        sample['target'] = self.dataset.isel(time=ids_target).data.T
-
-        # One hot encoding of month
-        idx_month_target = self.dataset['time'][ids_target].dt.month.data.astype(int) - 1
-        one_hot_target = np.zeros((len(idx_month_target), 12))
-        one_hot_target[np.arange(len(idx_month_target)), idx_month_target] = 1
-
-
         sample['idx'] = ids_target
-        sample['month'] = one_hot_target 
+        sample['target'] = self.dataset.isel(time=ids_target).data.T
+        sample['month'] = self.dataset['time'][ids_target].dt.month.data.astype(int) - 1
         sample['time'] = preproc.time2timestamp(
                 self.dataset.isel(time=ids_target)['time'].data
-            )
+        )
         sample['lag'] = self.lag_arr
 
+        sample = _to_tensor(sample)
         if self.transform:
             sample = self.transform(sample)
 
-        # Output
-        lim_input = sample['lim']
-        target = sample['target']
-        label = {'time': sample['time'], 'idx': sample['idx'],
-                 'month': sample['month'], 'lag': sample['lag']}
-
-        return lim_input, target, label 
+        return sample['lim'], sample['target'], {'time': sample['time'], 'idx': sample['idx'],
+                                                 'month': sample['month'], 'lag': sample['lag']}
 
 
 class SpatialTemporalData(Dataset):
@@ -181,19 +162,13 @@ class SpatialTemporalData(Dataset):
             idx = idx.tolist()
         
         x_interval = self.dataset.isel(time=slice(idx, idx+self.n_timesteps))
-
-        # One hot encoding of month
-        idx_month = x_interval['time'].dt.month.data.astype(int) - 1
-        one_hot_month = np.zeros((len(idx_month), 12))
-        one_hot_month[np.arange(len(idx_month)), idx_month] = 1
         
-        sample = {
+        sample = _to_tensor({
             'data':  np.array([x_interval[var].data for var in self.vars]),
             'time':  preproc.time2timestamp(self.dataset['time'].data[idx]),
-            'month': one_hot_month,
+            'month': x_interval['time'].dt.month.data.astype(int) - 1,
             'idx': np.arange(idx, idx+self.n_timesteps)
-        }
-
+        })
         if self.transform:
             sample = self.transform(sample)
 
@@ -257,80 +232,10 @@ class SpatialTemporalData(Dataset):
         return ds
 
 
-class SpatioTemporalResidual(Dataset):
-    """Dataclass for training residuals of model
-
-    Args:
-        dataset_target (xr.Dataset): Target dataset.
-            of shape (n_comp, n_times)
-        dataset_lim (xr.DataArray): Input dataset from lim 
-            of shape (n_comp, n_times, n_lag)
-        hist (int): Number of history. Defaults to 0.
-        transform (function, optional): Transform function. Defaults to None.
-    """
-    def __init__(self, dataset_target:xr.DataArray, dataset_lim: xr.DataArray, 
-                 hist: int = 0, transform= None):
-        self.dataset = dataset_target.transpose('time', 'lat', 'lon').compute()
-        self.dataset_lim = dataset_lim.transpose('time', 'lag', 'lat', 'lon').compute()
-        self.hist = hist
-        self.lag_arr = dataset_lim['lag'].data
-        self.vars = list(self.dataset.data_vars)
-        self.coords = list(self.dataset.coords)
-        self.dims = self.dataset[self.vars[0]].shape
-
-        self.transform = transform
-
-        assert len(self.dataset_lim['time']) == len(self.dataset['time'])
-
-    def __len__(self):
-        return len(self.dataset_lim['time']) - np.max(self.lag_arr) - self.hist 
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        # Input
-        if self.hist > 0:
-            x_hist = self.dataset.isel(time=slice(idx, idx+self.hist))
-            x_lim = self.dataset_lim.isel(time=idx+self.hist)
-            x_input = np.array([
-                np.concatenate([x_hist[var].data, x_lim[var].data], axis=0) 
-                for var in x_hist.data_vars
-            ])
-        else:
-            x_input = self.dataset_lim.isel(time=idx)
-            x_input = np.array([x_input[var].data for var in self.vars])
-        
-        # Target
-        ids_target = idx + self.hist + self.lag_arr
-        x_target = self.dataset.isel(time=ids_target)
-
-        # One hot encoding of month
-        idx_month_target = self.dataset['time'][ids_target].dt.month.data.astype(int) - 1
-        one_hot_target = np.zeros((len(idx_month_target), 12))
-        one_hot_target[np.arange(len(idx_month_target)), idx_month_target] = 1
-
-        sample = {
-            'input': x_input,
-            'target': np.array([x_target[var].data for var in self.vars]),
-            'idx': ids_target,
-            'month': one_hot_target, 
-            'time': preproc.time2timestamp(
-                self.dataset.isel(time=ids_target)['time'].data
-            )
-        }
-
-        if self.transform:
-            sample = self.transform(sample)
-
-        label = {'time': sample['time'], 'idx': sample['idx'], 'month': sample['month']}
-
-        return sample['input'], sample['target'], label 
-
 # ======================================================================================
 # Functions to load data for each class  
 # ======================================================================================
-def load_stdata(datapaths: dict,
+def load_stdata(datapaths: dict, lsm_path: str,
     hist: int = 18, horiz: int = 24, num_traindata: int = None, 
     batch_size: int=32, **kwargs
     ) -> list:
@@ -351,44 +256,48 @@ def load_stdata(datapaths: dict,
         datasets (dict): Dict of torch.Datasets with keys: train, val, test
         dataloaders (dict): Dict of torch.Dataloaders with keys: train, val, test
     """
-    # Load preprocessed data
+    # Load data
+    # ======================================================================================
     print("Load data!", flush=True)
     da_arr = []
     for var, path in datapaths.items():
         da = xr.open_dataset(path)[var]
-        # Create normalizer from stored attributes
-        if 'method' in da.attrs:
-            normalizer = preproc.normalizer_from_dict(da.attrs)
-            da.attrs['normalizer'] = normalizer
+        # Normalize data 
+        normalizer = preproc.Normalizer()
+        da = normalizer.fit_transform(da)
+        # Store normalizer as an attribute in the Dataarray for the inverse transformation
+        da.attrs = normalizer.to_dict()
         da_arr.append(da)
 
     ds = xr.merge(da_arr)
 
-    # Split in training and val data
+    # Apply land sea mask
+    lsm = xr.open_dataset(lsm_path)['lsm']
+    ds = ds.where(lsm!=1, other=np.nan)
+
+    # Split in training and test data
+    # ======================================================================================
     if num_traindata is None:
-        idx_train = int(0.75*len(ds['time']))
+        train_period = (0, int(0.8*len(ds['time'])))
     else:
-        idx_train = num_traindata
-    idx_val = int(0.75*len(ds['time']))
-    idx_test = int(0.9*len(ds['time'])) 
+        idx_start = np.random.randint(0, int(0.8*len(ds['time'])) - num_traindata)
+        train_period = (idx_start, idx_start + num_traindata)
+    val_period = (int(0.8*len(ds['time'])), int(0.9*len(ds['time'])))
+    test_period = (int(0.9*len(ds['time'])), len(ds['time']))
 
     data = dict(
-        train=ds.isel(time=slice(None,idx_train)),
-        val=ds.isel(time=slice(idx_val, idx_test)),
-        test=ds.isel(time=slice(idx_test, None))
+        train = ds.isel(time=slice(*train_period)),
+        val = ds.isel(time=slice(*val_period)),
+        test = ds.isel(time=slice(*test_period))
     )
 
     # Torch dataset class
     # ======================================================================================
     n_timesteps = hist + horiz
-    transform = transforms.Compose([ForConvolution(), ToTensor()])
 
-    datasets = {}
-    dataloaders = {}
+    datasets, dataloaders = {}, {}
     for key, values in data.items():
-        datasets[key] = SpatialTemporalData(values, 
-                                            n_timesteps, 
-                                             transform=transform)
+        datasets[key] = SpatialTemporalData(values, n_timesteps)
         shuffle = True if key == 'train' else False
         dataloaders[key] = DataLoader(datasets[key],
                                       drop_last = True,
@@ -401,14 +310,15 @@ def load_stdata(datapaths: dict,
 
 
 def load_pcdata(
-    datapaths: dict, 
-    n_eof: int=20, hist: int=3, horiz: int=24, 
+    datapaths: dict, lsm_path: str, 
+    n_eof: list=[20, 10], hist: int=4, horiz: int=24, 
     num_traindata: int=None, batch_size: int=32,
     **kwargs) -> list:
     """Load dataset for training LSTM on PCs.
 
     Args:
         datapaths (dict): Dictionaries with datasets,
+        lsm_path (str): Path to land sea mask.
         n_eof (int, optional): Number of EOFs. Defaults to 20.
         hist (int, optional): History length. Defaults to 3.
         horiz (int, optional): Horizon length of timeseries. Defaults to 24.
@@ -423,63 +333,68 @@ def load_pcdata(
         pca_coll (eof.PCACollection): PCA collection.
         normalizer_pca (preproc.Normalizer): Normalizer for PCs.
     """
-
-    # Load preprocessed data
+    # Load data
+    # ======================================================================================
     print("Load data!", flush=True)
     da_arr = []
     for var, path in datapaths.items():
         da = xr.open_dataset(path)[var]
-        # Create normalizer from stored attributes
-        if 'method' in da.attrs:
-            normalizer = preproc.normalizer_from_dict(da.attrs)
-            da.attrs['normalizer'] = normalizer
+        # Normalize data 
+        normalizer = preproc.Normalizer()
+        da = normalizer.fit_transform(da)
+        # Store normalizer as an attribute in the Dataarray for the inverse transformation
+        da.attrs = normalizer.to_dict()
         da_arr.append(da)
 
     ds = xr.merge(da_arr)
 
+    # Apply land sea mask
+    lsm = xr.open_dataset(lsm_path)['lsm']
+    ds = ds.where(lsm!=1, other=np.nan)
+
     # Create PCA
-    pca_lst = []
+    # ======================================================================================
+    eofa_lst = []
     for i, var in enumerate(ds.data_vars):
         print(f"Create EOF of {var}!")
-        n_components = n_eof // (i+1)
-        pca_lst.append(
-            eof.SpatioTemporalPCA(ds[var], n_components=n_components),
+        n_components = n_eof[i] if isinstance(n_eof, list) else n_eof 
+        eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components)
+        eofa.fit(
+            ds[var].isel(time=slice(None, int(0.8*len(ds['time']))))
         )
-    pca_coll = eof.PCACollection(pca_lst)
-    n_components = pca_coll.n_components
-    pcs = pca_coll.get_principal_components()
+        eofa_lst.append(eofa)
+    combined_eof = eof.CombinedEOF(eofa_lst, vars=list(ds.data_vars))
 
-    # Normalize
+    # Normalize PCs
+    z_eof = combined_eof.transform(ds)
     print("Normalize PCs.", flush=True)
     normalizer_pca = preproc.Normalizer(method='zscore')
-    pcs = normalizer_pca.fit_transform(pcs, dim='time')
+    z_eof_norm = normalizer_pca.fit_transform(z_eof, dim='time')
 
-
-    # Split in training and val data
+    # Split in training and test data
+    # ======================================================================================
     if num_traindata is None:
-        idx_train = int(0.75*len(pcs['time']))
+        train_period = (0, int(0.8*len(ds['time'])))
     else:
-        idx_train = num_traindata
+        idx_start = np.random.randint(0, int(0.8*len(ds['time'])) - num_traindata)
+        train_period = (idx_start, idx_start + num_traindata)
+    val_period = (int(0.8*len(ds['time'])), int(0.9*len(ds['time'])))
+    test_period = (int(0.9*len(ds['time'])), len(ds['time'])) 
 
-    idx_val = int(0.75*len(pcs['time']))
-    idx_test = int(0.9*len(pcs['time'])) 
     data = dict(
-        train=pcs.isel(time=slice(None,idx_train)),
-        val=pcs.isel(time=slice(idx_val, idx_test)),
-        test=pcs.isel(time=slice(idx_test, None))
+        train = z_eof_norm.isel(time=slice(*train_period)),
+        val = z_eof_norm.isel(time=slice(*val_period)),
+        test = z_eof_norm.isel(time=slice(*test_period)),
     )
 
     # Torch dataset class
     # ======================================================================================
     n_timesteps = hist + horiz
-    transform = transforms.Compose([ToTensor()])
 
     datasets = {}
     dataloaders = {}
     for key, values in data.items():
-        datasets[key] = TimeSeries(values, 
-                                   n_timesteps, 
-                                   transform=transform)
+        datasets[key] = TimeSeries(values,n_timesteps)
         shuffle = True if key == 'train' else False
         dataloaders[key] = DataLoader(datasets[key],
                                       drop_last = True,
@@ -488,190 +403,8 @@ def load_pcdata(
                                       pin_memory=True,
                                       shuffle=shuffle)
 
-    return ds, datasets, dataloaders, pca_coll, normalizer_pca  
+    return ds, datasets, dataloaders, combined_eof, normalizer_pca  
 
-
-def load_pcdata_lim(
-    datapaths: dict, 
-    n_eof: int=20, horiz: int=24, 
-    num_traindata: int=None, batch_size: int=32, 
-    lim_type: str='cslim', n_eof_lim: int=None, **kwargs
-    ) -> list:
-    """Load data for LIM+LSTM model with LIM mean prediction as input.
-
-    Args:
-        datapaths (dict): _description_
-        n_eof (int, optional): _description_. Defaults to 20.
-        hist (int, optional): _description_. Defaults to 0.
-        horiz (int, optional): _description_. Defaults to 24.
-        num_traindata (int, optional): _description_. Defaults to None.
-        batch_size (int, optional): _description_. Defaults to 32.
-        lim_type (str, optional): _description_. Defaults to 'cslim'.
-        n_eof_lim (int, optional): _description_. Defaults to None.
-
-    Returns:
-        ds (xr.Dataset): 
-        datasets (hyblim.ResidualTimeSeries):
-        dataloaders (torch.Dataloader):
-        pca_coll (hyblim.MultiSpatioTemporalPCA):
-        normalizer_pca (hyblim.Normalizer):
-    """
-
-    # Load preprocessed data
-    print("Load data!", flush=True)
-    da_arr = []
-    for var, path in datapaths.items():
-        da = xr.open_dataset(path)[var]
-        # Create normalizer from stored attributes
-        if 'method' in da.attrs:
-            normalizer = preproc.normalizer_from_dict(da.attrs)
-            da.attrs['normalizer'] = normalizer
-        da_arr.append(da)
-
-    ds = xr.merge(da_arr)
-    
-    # Create PCA
-    # ======================================================================================
-    pca_lst = []
-    for i, var in enumerate(ds.data_vars):
-        print(f"Create EOF of {var}!")
-        n_components = n_eof // (i+1)
-        pca_lst.append(
-            eof.SpatioTemporalPCA(ds[var], n_components=n_components),
-        )
-    pca_coll = eof.PCACollection(pca_lst)
-    n_components = pca_coll.n_components
-    pcs = pca_coll.get_principal_components()
-
-    # Split in training and val data
-    idx_train = int(0.75*len(pcs['time']))
-    idx_val = int(0.9*len(pcs['time'])) 
-    data = dict(
-        train=pcs.isel(time=slice(None,idx_train)),
-        val=pcs.isel(time=slice(idx_train, idx_val)),
-        test=pcs.isel(time=slice(idx_val, None))
-    )
-
-    # In case LIM is only trained on a subset of the PCs
-    if n_eof_lim is not None:
-        assert n_eof_lim < n_eof
-        data4lim = {}
-        for key in data.keys():
-            pcs_truncate = []
-            n_start = 0
-            for i, pca in enumerate(pca_coll.pca_lst):
-                n_end = n_start + (n_eof_lim // (i+1))
-                pcs_truncate.append(data[key].isel(eof=slice(n_start, n_end)))
-                n_start = pca.n_components
-            data4lim[key] = xr.concat(pcs_truncate, dim='eof')
-    else:
-        data4lim = data.copy()
-
-    # Fit LIM
-    # ======================================================================================
-    frcst_lim = {}
-    if lim_type == 'stlim':
-        # Stationary LIM
-        print("Create ST-LIM forecast!", flush=True)
-        tau = 2
-        model = lim.LIM(tau)
-        model.fit(data4lim['train'].data)
-
-        # Create deterministic forecasts 
-        lag_arr = np.arange(1, horiz+1, 1)
-        for key, z in data4lim.items():
-            frcst_lim[key] = xr.DataArray(
-                data=model.rollout_mean(z.data, lag_arr), 
-                coords={'lag': lag_arr, 'eof': z['eof'],
-                        'time': z['time']}
-        ).transpose('eof', 'time', 'lag')
-
-    elif lim_type == 'cslim':
-        # Cyclostationary LIM
-        print("Create CS-LIM forecast!", flush=True)
-        tau = 1
-        model = lim.CSLIM(tau=tau)
-        start_month = data4lim['train'].time.dt.month[0].data
-        model.fit(data4lim['train'].data, start_month, average_window=3)
-
-        # Create deterministic forecasts 
-        lag_arr = np.arange(1, horiz+1, 1)
-        for key, z in data4lim.items():
-            rollout_arr = []
-            for i in range(len(z['time'])):
-                z_init = z.isel(time=i)
-                month = z_init.time.dt.month.data
-                z_rollout = model.rollout_mean(z_init.data, month, lag_arr)
-                rollout_arr.append(z_rollout)
-                
-            frcst_lim[key] =  xr.DataArray(
-                data=np.array(rollout_arr),
-                coords={'time': z['time'], 'lag': lag_arr, 'eof': z['eof']}
-                ).transpose('eof', 'time', 'lag')
-    else:
-        raise ValueError(f"Specified lim_type={lim_type} does not exist!")
-
-    # In case LIM forecast has only been applied on subset of PCs, add zeros
-    # to all remaining PCs 
-    if n_eof_lim is not None:
-        for key, z_lim in frcst_lim.items():
-            buff = []
-            n_start = 0
-            idx_start_eof = 0
-            pad_axis = np.where(np.array(z_lim.dims)== 'eof')
-            for i, pca in enumerate(pca_coll.pca_lst):
-                n_end = n_start + (n_eof_lim // (i+1))
-                n_pad = pca.n_components - (n_eof_lim // (i+1))
-                pad_width = np.zeros((len(z_lim.dims), 2), dtype=int)
-                pad_width[pad_axis,1] = n_pad
-                buff.append(
-                    xr.DataArray(
-                        data=np.pad(z_lim.isel(eof=slice(n_start, n_end)).data,
-                                    pad_width=tuple(map(tuple,pad_width)),
-                                    mode='constant'),
-                        coords=dict(eof=np.arange(idx_start_eof, idx_start_eof+pca.n_components+1),
-                                    time=z_lim['time'], lag=z_lim['lag'])
-                     )
-                )
-                n_start = n_end
-                idx_start_eof += pca.n_components
-
-            frcst_lim[key] = xr.concat(buff, dim='eof')
-    
-    # Normalize PCs 
-    # ======================================================================================
-    print("Normalize PC for LSTM training.", flush=True)
-    normalizer_pca = preproc.Normalizer(method='zscore')
-    normalizer_pca.fit(pcs, dim='time')
-
-    # Normalize target data 
-    for key, z in data.items():
-        data[key] = normalizer_pca.transform(z)
-
-    # Normalize LIM forecast
-    for key, z in frcst_lim.items():
-        frcst_lim[key] = normalizer_pca.transform(z)
-    
-    
-    # Torch dataset class
-    # ======================================================================================
-    transform = transforms.Compose([ToTensor()])
-
-    datasets = {}
-    dataloaders = {}
-    for key in data.keys():
-        datasets[key] = TimeSeriesResidual(data[key], frcst_lim[key], None, 
-                                           transform=transform)
-        shuffle = True if key == 'train' else False
-        dataloaders[key] = DataLoader(datasets[key],
-                                      drop_last=True,
-                                      batch_size=batch_size,
-                                      num_workers=4,
-                                      pin_memory=True,
-                                      shuffle=shuffle)
-                                
-
-    return ds, datasets, dataloaders, pca_coll, normalizer_pca 
 
 
 def load_pcdata_lim_ensemble(
@@ -786,80 +519,3 @@ def load_pcdata_lim_ensemble(
 
     return ds, datasets, dataloaders, pca_coll, normalizer_pca 
 
-
-def load_stdata_lim(
-    path_target: str, paths_lim_frcst: list,
-    hist: int=0, batch_size: int=32, testing=False,
-    **kwargs
-    ) -> list:
-    """Load gridded data and the LIM-hindcast to create SpatioTemporalResidual dataset
-    and dataloader. 
-
-    Args:
-        path_target (str): _description_
-        paths_lim_frcst (list): _description_
-        hist (int, optional): _description_. Defaults to 0.
-        batch_size (int, optional): _description_. Defaults to 32.
-        testing (bool, optional): _description_. Defaults to False.
-
-    Returns:
-        ds_target (xr.Dataset)
-        ds_frcst_lim (xr.Dataset)
-        datasets (dict): Dict of SpatioTemporalResidual
-        dataloaders (dict): Dataloaders of ['train', 'val', 'test']
-    """
-
-    # Load data
-    if testing: # True only for testing
-        print("Load only a subset of the data for testing.", flush=True)
-        ds_target = xr.open_dataset(path_target).isel(time=slice(None,500)) 
-        ds_frcst_lim = xr.open_mfdataset(
-            paths_lim_frcst, combine='nested', concat_dim='lag'
-        ).isel(time=slice(None,500))
-    else:
-        print("Load data!", flush=True)
-        ds_target = xr.open_dataset(path_target)  
-        ds_frcst_lim = xr.open_mfdataset(
-            paths_lim_frcst, combine='nested', concat_dim='lag'
-        )
-
-    # Create normalizer from stored parameters
-    for var in ds_target.data_vars:
-        normalizer = preproc.normalizer_from_dict(ds_target[var].attrs)
-        ds_target[var].attrs['normalizer'] = normalizer
-        ds_frcst_lim[var].attrs['normalizer'] = normalizer
-
-    # Split in training and val data
-    idx_train = int(0.75*len(ds_target['time']))
-    idx_val = int(0.9*len(ds_target['time'])) 
-
-    data = dict(
-        train=ds_target.isel(time=slice(None,idx_train)),
-        val=ds_target.isel(time=slice(idx_train, idx_val)),
-        test=ds_target.isel(time=slice(idx_val, None))
-    )
-    frcst_lim = dict(
-        train=ds_frcst_lim.isel(time=slice(None,idx_train)),
-        val=ds_frcst_lim.isel(time=slice(idx_train, idx_val)),
-        test=ds_frcst_lim.isel(time=slice(idx_val, None))
-    )
-    # Create torch dataset
-    # ======================================================================================
-    print("Create datasets!")
-    transform = transforms.Compose([ForConvolution(), ToTensor()])
-
-    datasets = {}
-    dataloaders = {}
-    for key in data.keys():
-        datasets[key] = SpatioTemporalResidual(data[key], frcst_lim[key], 
-                                           hist=hist, transform=transform)
-        shuffle = True if key == 'train' else False
-        dataloaders[key] = DataLoader(datasets[key],
-                                      drop_last=True,
-                                      batch_size=batch_size,
-                                      num_workers=4,
-                                      pin_memory=True,
-                                      shuffle=shuffle)
-
-
-    return ds_target, ds_frcst_lim, datasets, dataloaders

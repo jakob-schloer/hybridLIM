@@ -1,16 +1,12 @@
 """Util functions for analyzing ENSO types."""
-import os
-import cftime
+import os, cftime
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy import linalg
 import scipy.stats as stats
 from sklearn.decomposition import PCA
-import scipy.spatial.distance as dist
-
-import hyblim.utils.preproc as utpp
-from hyblim.utils.eof import SpatioTemporalPCA
+import hyblim.data.preproc as utpp
+from hyblim.data.eof import EmpiricalOrthogonalFunctionAnalysis
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -188,34 +184,6 @@ def EC_indices(ssta, pc_sign=[1, 1], time_range=None):
         ))
 
     return e_index, c_index
-
-
-def get_pdo_index(ssta):
-    """Get time-series of PDO. 
-    
-    The PDO is defined as the first leading EOF of the Northern Pacific, 
-    i.e. 20-70N.
-
-    Args:
-        datapath (str): Path to data.
-
-    Returns:
-        ts_pdo (xr.Dataarray): Time series of PDO
-    """
-    ssta_cut = utpp.cut_map(ssta, lon_range=[120, -71], lat_range=[20, 70])
-    dataset, loader = utdata.data2dataset(ssta,
-        SpatialData, data_2d=True, shuffle=False,
-    )
-    # PCA
-    pca = SpatioTemporalPCA(dataset, n_components=2)
-    ts = pca.get_timeEvolution().T
-    ts_pdo = xr.DataArray(
-        ts[:, 0], dims=['time'],
-        coords={'time': dataset.time},
-        name='pdo'
-    )
-    return ts_pdo 
-
 
 
 #########################################################################################
@@ -527,10 +495,7 @@ def get_enso_flavors_obs(definition='N3N4', fname=None,
         )
     elif definition == 'N3N4_NOAA':
         # N3N4 approach
-        if fname is None:
-            fname = "https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii"
-        nino_indices = get_nino_indices_NOAA(
-            fname, time_range=time_range, time_roll=0)
+        nino_indices = get_nino_indices(ssta, time_range=time_range)
         enso_classes = get_enso_flavors_N3N4(
             nino_indices, month_range=month_range, mean=True, threshold=0.5,
             offset=offset, min_diff=0.1, drop_volcano_year=False

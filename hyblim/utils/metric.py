@@ -12,7 +12,8 @@ import scipy.stats as stats
 from scipy.special import erf
 from scipy.fft import fft, fftfreq
 
-from hyblim.data import preproc, enso
+from hyblim.data import preproc
+from hyblim.utils import enso
 
 def power_spectrum(data):
     """Compute power spectrum.
@@ -97,13 +98,15 @@ def crps_empirical(x_target: np.ndarray, x_pred: np.ndarray):
 
 def verification_metrics_per_gridpoint(target: xr.Dataset, 
                                        frcst_mean: xr.Dataset,
-                                       frcst_std: xr.Dataset=None) -> dict:
+                                       frcst_std: xr.Dataset=None,
+                                       n_members: int=16) -> dict:
     """Verification metrics for forecast in data space for each time step seperately.
 
     Args:
         target (xr.Dataset): Target.
         frcst_mean (xr.Dataset): Forecast mean. 
         frcst_std (xr.Dataset, optional): Forecast std.. Defaults to None.
+        n_member (int, optional): Number of ensemble members. Defaults to 16.
 
     Returns:
         dict: Dictionary of metrics.
@@ -115,8 +118,8 @@ def verification_metrics_per_gridpoint(target: xr.Dataset,
     verification_metrics['mse'] = mse
 
     # RMSE skill score
-    skill = 1 - np.sqrt(mse) / target.std(dim='time', skipna=True)
-    verification_metrics['rmse_skill'] = skill
+    skill = 1 - np.sqrt(mse) / target.std(dim='time', skipna=True, ddof=1)
+    verification_metrics['rmsess'] = skill
 
     # Correlation coefficient
     verification_metrics['cc'] = xr.merge([
@@ -129,20 +132,29 @@ def verification_metrics_per_gridpoint(target: xr.Dataset,
         # CRPS
         crps = crps_gaussian(target, frcst_mean, frcst_std)
         verification_metrics['crps'] = crps.mean(dim='time', skipna=True)
-        verification_metrics['crps_norm'] = crps.mean(dim='time', skipna=True) / target.std(dim='time', skipna=True)
+        verification_metrics['crpss'] = crps.mean(dim='time', skipna=True) / target.std(dim='time', skipna=True, ddof=1)
+
+        # Spread to skill ratio 
+        spread = np.square(frcst_std).mean(dim='time', skipna=True)
+        spread_skill = np.sqrt( (n_members + 1)/ n_members ) * spread / mse 
+        verification_metrics['spread'] = spread
+        verification_metrics['spread_skill'] = spread_skill
+
 
     return verification_metrics
 
 
 def verification_metrics_per_time(target: xr.Dataset, 
                                   frcst_mean: xr.Dataset,
-                                  frcst_std: xr.Dataset=None) -> dict:
+                                  frcst_std: xr.Dataset=None,
+                                  n_members: int=16) -> dict:
     """Verification metrics for forecast in data space for each time step seperately.
 
     Args:
         target (xr.Dataset): Target.
         frcst_mean (xr.Dataset): Forecast mean. 
         frcst_std (xr.Dataset, optional): Forecast std.. Defaults to None.
+        n_member (int, optional): Number of ensemble members. Defaults to 16.
 
     Returns:
         dict: Dictionary of metrics.
@@ -154,21 +166,28 @@ def verification_metrics_per_time(target: xr.Dataset,
     verification_metrics['mse'] = mse
 
     # RMSE skill score
-    skill = 1 - np.sqrt(mse) / target.std(dim=('lat', 'lon'), skipna=True)
-    verification_metrics['rmse_skill'] = skill
+    skill = 1 - np.sqrt(mse) / target.std(dim=('lat', 'lon'), skipna=True, ddof=1)
+    verification_metrics['rmsess'] = skill
 
     # Correlation coefficient
-    verification_metrics['cc'] = xr.merge([
+    cc = xr.merge([
             xr.corr(target[var], frcst_mean[var], dim=('lat', 'lon')) 
             for var in target.data_vars
     ])
+    verification_metrics['cc'] = cc
 
     # Ensemble metrics
     if frcst_std is not None:
         # CRPS
         crps = crps_gaussian(target, frcst_mean, frcst_std)
         verification_metrics['crps'] = crps.mean(dim=('lat', 'lon'), skipna=True)
-        verification_metrics['crps_norm'] = crps.mean(dim=('lat', 'lon'), skipna=True) / target.std(dim=('lat', 'lon'), skipna=True)
+        verification_metrics['crpss'] = 1 - crps.mean(dim=('lat', 'lon'), skipna=True) / target.std(dim=('lat', 'lon'), skipna=True, ddof=1)
+
+        # Spread to skill ratio 
+        spread = np.square(frcst_std).mean(dim=('lat', 'lon'), skipna=True)
+        spread_skill = np.sqrt( (n_members + 1)/ n_members ) * spread / mse 
+        verification_metrics['spread'] = spread
+        verification_metrics['spread_skill'] = spread_skill
 
     return verification_metrics
 
@@ -198,7 +217,7 @@ def frcst_metrics_per_month(target: xr.Dataset, frcst: xr.Dataset) -> dict:
         print("Compute monthly ACC!")
         acc_monthly_var = []
         for m in np.unique(temp_x.time.dt.month):
-            temp_acc = anomaly_correlation_coefficient(
+            temp_acc = correlation_coefficient(
                 temp_x.isel(time=np.where(temp_x.time.dt.month == m)[0]),
                 temp_x_frcst.isel(time=np.where(temp_x_frcst.time.dt.month == m)[0])
             )
@@ -210,7 +229,7 @@ def frcst_metrics_per_month(target: xr.Dataset, frcst: xr.Dataset) -> dict:
         # Pattern correlation
         print("Compute monthly Pattern Correlation!")
         pattern_corr_temp = xr.DataArray(
-            data=pattern_correlation(temp_x.data, temp_x_frcst.data),
+            data=correlation_coefficient(temp_x.data, temp_x_frcst.data),
             coords={'time': temp_x['time']}, name=var
         )
         pattern_corr.append(
@@ -300,17 +319,27 @@ def mean_diff(model1_skill: xr.DataArray, model2_skill: xr.DataArray,
     return diff, pvalues
 
 
-def listofdicts_to_dict(array_of_dicts: list) -> dict:
-    """Convert list of dictionaries with same keys to dictionary of lists.
+def listofdicts_to_dictoflists(array_of_dicts: list) -> dict:
+    """Convert list of dictionaries with same keys and xarray.datasets of same dimensions into a dictionary of xarray.
 
     Args:
         array_of_dicts (list): List of dictionaries with same keys. 
 
     Returns:
-        dict: Dictionary of lists.
+        dict: Dictionary of xr.DataSets.
     """
     dict_of_arrays = {}
     for key in array_of_dicts[0].keys():
         dict_of_arrays[key] = [d[key] for d in array_of_dicts]
     return dict_of_arrays
 
+
+def listofdicts_to_dictofxr(list_of_dict, dim_key='lag'):
+    dict_of_xr = {}
+    dict_of_list = listofdicts_to_dictoflists(list_of_dict)
+    coords = dict_of_list.pop(dim_key)
+    for key, ds in dict_of_list.items():
+        tmp_ds = xr.concat(ds, dim=pd.Index(coords, name=dim_key),
+                            compat='equals', join='inner') 
+        dict_of_xr[key] = tmp_ds 
+    return dict_of_xr
