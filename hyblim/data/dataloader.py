@@ -115,7 +115,7 @@ class TimeSeriesResidual(Dataset):
         sample['lim'] = self.lim_ensemble.isel(time=idx).data
         ids_target = idx + self.lag_arr
         sample['idx'] = ids_target
-        sample['target'] = self.dataset.isel(time=ids_target).data.T
+        sample['target'] = self.dataset.isel(time=ids_target).data
         sample['month'] = self.dataset['time'][ids_target].dt.month.data.astype(int) - 1
         sample['time'] = preproc.time2timestamp(
                 self.dataset.isel(time=ids_target)['time'].data
@@ -408,8 +408,11 @@ def load_pcdata(
 
 
 def load_pcdata_lim_ensemble(
-    lim_hindcast: xr.Dataset, datapaths: dict = None, 
-    n_eof: int=20, num_traindata: int=None,
+    lim_hindcast: xr.Dataset, 
+    datapaths: dict = None, 
+    lsm_path: str = None,
+    n_eof: list=[20, 10],
+    num_traindata: int=None,
     batch_size: int=32,
     **kwargs
     ) -> list:
@@ -431,84 +434,76 @@ def load_pcdata_lim_ensemble(
         pca_coll (hyblim.MultiSpatioTemporalPCA):
         normalizer_pca (hyblim.Normalizer):
     """
-    # Load preprocessed data
+    # Load data
+    # ======================================================================================
     print("Load data!", flush=True)
     da_arr = []
     for var, path in datapaths.items():
         da = xr.open_dataset(path)[var]
-        # Create normalizer from stored attributes
-        if 'method' in da.attrs:
-            normalizer = preproc.normalizer_from_dict(da.attrs)
-            da.attrs['normalizer'] = normalizer
+        # Normalize data 
+        normalizer = preproc.Normalizer()
+        da = normalizer.fit_transform(da)
+        # Store normalizer as an attribute in the Dataarray for the inverse transformation
+        da.attrs = normalizer.to_dict()
         da_arr.append(da)
 
-    ds = xr.merge(da_arr) 
+    ds = xr.merge(da_arr)
+
+    # Apply land sea mask
+    lsm = xr.open_dataset(lsm_path)['lsm']
+    ds = ds.where(lsm!=1, other=np.nan)
 
     # Create PCA
     # ======================================================================================
-    pca_lst = []
+    eofa_lst = []
     for i, var in enumerate(ds.data_vars):
         print(f"Create EOF of {var}!")
-        n_components = n_eof // (i+1)
-        pca_lst.append(
-            eof.SpatioTemporalPCA(ds[var], n_components=n_components),
+        n_components = n_eof[i] if isinstance(n_eof, list) else n_eof 
+        eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components)
+        eofa.fit(
+            ds[var].isel(time=slice(None, int(0.8*len(ds['time']))))
         )
-    pca_coll = eof.PCACollection(pca_lst)
-    n_components = pca_coll.n_components
-    pcs = pca_coll.get_principal_components()
+        eofa_lst.append(eofa)
+    combined_eof = eof.CombinedEOF(eofa_lst, vars=list(ds.data_vars))
 
-    # Normalize PCs 
-    # ======================================================================================
-    print("Normalize PC for LSTM training.", flush=True)
+    # Normalize PCs
+    z_eof = combined_eof.transform(ds)
+    print("Normalize PCs.", flush=True)
     normalizer_pca = preproc.Normalizer(method='zscore')
-    normalizer_pca.fit(pcs, dim='time')
-
-    # Normalize target
-    target = normalizer_pca.transform(pcs)
+    z_eof_norm = normalizer_pca.fit_transform(z_eof, dim='time')
 
     # Normalize LIM hindcast
     lim_hindcast = normalizer_pca.transform(lim_hindcast)
 
-    # Split in training and val data
+    # Split in training and test data
     # ======================================================================================
-    # Split in training and val data
-    idx_val = int(0.75*len(pcs['time']))
-    idx_test = int(0.9*len(pcs['time'])) 
     if num_traindata is None:
-        idx_train = int(0.75*len(pcs['time']))
-        idx_val_lim = idx_val 
-        idx_test_lim = idx_test 
+        train_period = (0, int(0.8*len(ds['time'])))
     else:
-        idx_train = num_traindata
-        idx_val_lim = idx_train 
-        idx_test_lim = idx_train + (idx_test-idx_val)
+        idx_start = np.random.randint(0, int(0.8*len(ds['time'])) - num_traindata)
+        train_period = (idx_start, idx_start + num_traindata)
+    val_period = (int(0.8*len(ds['time'])), int(0.9*len(ds['time'])))
+    test_period = (int(0.9*len(ds['time'])), len(ds['time'])) 
 
     target = dict(
-        train=target.isel(time=slice(None,idx_train)),
-        val=target.isel(time=slice(idx_val, idx_test)),
-        test=target.isel(time=slice(idx_test, None))
+        train = z_eof_norm.isel(time=slice(*train_period)),
+        val = z_eof_norm.isel(time=slice(*val_period)),
+        test = z_eof_norm.isel(time=slice(*test_period)),
     )
     lim_hindcast = dict(
-        train=lim_hindcast.isel(time=slice(None,idx_train)),
-        val=lim_hindcast.isel(time=slice(idx_val_lim, idx_test_lim)),
-        test=lim_hindcast.isel(time=slice(idx_test_lim, None))
+        train = lim_hindcast.isel(time=slice(*train_period)),
+        val = lim_hindcast.isel(time=slice(*val_period)),
+        test = lim_hindcast.isel(time=slice(*test_period)),
     )
-
-    # Check if hindcast has same dimensions than target
-    # ======================================================================================
-    print("Check if hindcast and target have same coordinates!", flush=True)
     assert np.array_equal(target['train']['time'].data, lim_hindcast['train']['time'].data)
     assert np.array_equal(target['train']['eof'].data, lim_hindcast['train']['eof'].data)
 
     # Torch dataset class
     # ======================================================================================
-    transform = transforms.Compose([ToTensor()])
-
     datasets = {}
     dataloaders = {}
     for key in target.keys():
-        datasets[key] = TimeSeriesResidual(target[key], lim_hindcast[key],
-                                           transform=transform)
+        datasets[key] = TimeSeriesResidual(target[key], lim_hindcast[key])
         shuffle = True if key == 'train' else False
         dataloaders[key] = DataLoader(datasets[key],
                                       drop_last=True,
@@ -517,5 +512,5 @@ def load_pcdata_lim_ensemble(
                                       pin_memory=True,
                                       shuffle=shuffle)
 
-    return ds, datasets, dataloaders, pca_coll, normalizer_pca 
+    return ds, datasets, dataloaders, combined_eof, normalizer_pca 
 

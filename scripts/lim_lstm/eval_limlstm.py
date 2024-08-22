@@ -24,9 +24,10 @@ def hindcast(model, dataloader, normalizer_pca, device, history, horizon):
     targets, frcsts, time_ids = [], [], []
     with torch.no_grad():
         unused = dataloader.dataset.n_timesteps - history - horizon  
-        for sample, aux in tqdm(dataloader):
-            x_input, x_target, _ = sample.to(device).split([history, horizon, unused], dim=1)
-            context, _ = aux['month'].to(device=device, dtype=torch.long).split([history + horizon, unused], dim=1)
+        for lim_input, target, aux in dataloader:
+            x_input, x_target = lim_input.to(device), target.to(device) 
+            context = aux['month'].to(device, dtype=torch.long) if config['film'] else None
+            # Prediction
             x_ensemble = model(x_input, context)
 
             targets.append(x_target.cpu())
@@ -204,13 +205,42 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
         lag_arr (list): List of lags to compute metrics for
         scorepath (str): Path to save metrics
     """
+    # ==================================================================================================
+    # TODO: Continue here
+    # Load model with best loss
+    print("Load model", flush=True)
+    checkpoint = torch.load(model_path + "/min_checkpoint.pt")
     model.load_state_dict(checkpoint['model_state_dict'])
-    device= torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     _ = model.to(device)
 
-    # Hindcast in latent space
-    z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device,
-                                    history=4, horizon=24)
+    # Hindcast data
+    print("Hindcast model", flush=True)
+    z_hindcast, time_idx = hlp.hindcast(dataloaders['val'], normalizer_pca, model, device)
+
+    lag_arr = [1, 3, 6, 9, 12, 15, 18, 24]
+    times = datasets['val'].dataset['time'].data 
+    ds_target = ds.sel(time=times)
+
+    # Extended PCA with 300 components 
+    extended_pca = []
+    n_components_full = 300 
+    for i, var in enumerate(ds.data_vars):
+        print(f"Create extended EOF of {var}!")
+        extended_pca.append(
+            eof.SpatioTemporalPCA(ds[var], n_components=n_components_full),
+        )
+    extended_pca = eof.PCACollection(extended_pca)
+
+    # Compute metric
+    verification_per_gridpoint, verification_per_time, nino_indices = hlp.evaluation_metric(
+        z_hindcast['frcst'], time_idx, times,
+        combined_eofa, ds_target, lag_arr, extended_pca
+    )
+    # Save metrics to file
+    torch.save(verification_per_gridpoint, model_path + "/metrics_grid.pt")
+    torch.save(verification_per_time, model_path + "/metrics_time.pt")
+    torch.save(nino_indices, model_path + "/nino_indices.pt")
+    # ==================================================================================================
 
     # Extended PCA with 300 components 
     n_components_full = 300 

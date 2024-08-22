@@ -184,57 +184,56 @@ class EncDecLSTM(nn.Module):
 
 class ResidualLSTM(nn.Module):
     """LSTM trained for residuals. Here, residuals for a LIM."""
-    def __init__(self, input_dim: int=1, hidden_dim: int=64, n_layers: int=1, 
-                 condition_dim: int = None,
-                 T_max: int=5) -> None:
+    def __init__(self,
+                 input_dim: int,
+                 hidden_dim: int = 64, 
+                 num_layers: int = 1,
+                 num_conditions: int = -1,
+                 T_max: int = 5) -> None:
         super().__init__()
+
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
-        self.n_layers = n_layers
-        self.condition_dim = condition_dim
+        self.num_layers = num_layers
+        self.use_film = num_conditions > 0
+        self.T_max = T_max
 
-        # Conditioning
-        if self.condition_dim is None:
-            lstm_cell = LSTMCell
-        else:
-            # FiLM
-            lstm_cell = LSTMCell
-
-            # Dictionary embedding
-            self.film = nn.Embedding(num_embeddings=self.condition_dim,
-                                     embedding_dim=8*self.hidden_dim) 
-            nn.init.uniform_(self.film.weight, 0.05, 0.05)
-
+        # Define model
         self.processor = nn.ModuleDict()
-        # Input layer 
-        self.processor['to_latent'] = nn.Linear(self.input_dim, self.hidden_dim)
-
+        self.processor['to_latent'] = nn.Linear(input_dim, self.hidden_dim)
         # Decoder
         self.processor['decoder'] = nn.ModuleList(
-            [lstm_cell(self.hidden_dim, self.hidden_dim, T_max=T_max)
-             for i in range(n_layers)]
+            [LSTMCell(self.hidden_dim, self.hidden_dim, T_max=self.T_max)
+             for i in range(self.num_layers)]
         )
         self.processor['to_data'] = nn.Linear(self.hidden_dim, self.input_dim)
+        
+        # FilM layer
+        if self.use_film:
+            self.processor['embedding'] = nn.Embedding(
+                num_embeddings=num_conditions, embedding_dim=8*self.hidden_dim
+            ) 
+            nn.init.uniform_(self.processor['embedding'].weight, 0.05, 0.05)
 
-    def forward(self, lim_ensemble, u=None):
+    def forward(self, lim_ensemble, context=None):
         device = lim_ensemble.device
         batch_size, n_members, n_horiz, n_feat = lim_ensemble.shape
         # Stack batch_size and members for efficient forward path
         stack_size = batch_size * n_members
-        x_in = lim_ensemble.view(stack_size, n_horiz, n_feat)
-        u_in = u.repeat_interleave(n_members, dim=0) if u is not None else None
+        x_input = lim_ensemble.view(stack_size, n_horiz, n_feat)
+        u = context.repeat_interleave(n_members, dim=0) if context is not None else None
 
         # Initialize lstm states
-        h_t = [torch.zeros(stack_size, self.hidden_dim, dtype=torch.float32).to(device)] * self.n_layers 
-        c_t = [torch.zeros(stack_size, self.hidden_dim, dtype=torch.float32).to(device)] * self.n_layers 
+        h_t = [torch.zeros(stack_size, self.hidden_dim, dtype=torch.float32).to(device)] * self.num_layers 
+        c_t = [torch.zeros(stack_size, self.hidden_dim, dtype=torch.float32).to(device)] * self.num_layers 
 
-        x_out = []
+        x_pred = []
         for t in range(n_horiz):
             # Input to latent
-            x_t = x_in[:, t,:]
+            x_t = x_input[:, t,:]
             z_t = self.processor['to_latent'](x_t.flatten(start_dim=1))
             # Conditioning
-            u_t = self.film(u_in[:,t]) if u_in is not None else None 
+            u_t = self.processor['embedding'](u[:,t]) if u is not None else None 
 
             # LSTM Decoder
             for j, lstm in enumerate(self.processor['decoder']):
@@ -242,13 +241,10 @@ class ResidualLSTM(nn.Module):
                 z_t += h_t[j]
 
             # To input space
-            x_hat_t = x_t + self.processor['to_data'](z_t)
-            x_out.append(x_hat_t.unsqueeze(dim=1))
+            x_hat = x_t + self.processor['to_data'](z_t)
+            x_pred.append(x_hat.unsqueeze(dim=1))
 
         # transform list to tensor
-        x_out = torch.cat(x_out, dim=1)
+        x_pred = torch.cat(x_pred, dim=1)
 
-        # Reshape back
-        x_out = x_out.view(batch_size, n_members, n_horiz, n_feat)
-
-        return x_out 
+        return x_pred.view(batch_size, n_members, n_horiz, n_feat)
