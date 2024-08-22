@@ -67,3 +67,5 @@ if not os.path.exists(config['outpath']):
 # Create filename, e.g. ssta_n20_ssha_n10_pca.pkl
 fname = "pca_" + "_".join([f"{var}_n{n}" for var, n in zip(ds.data_vars, config['n_eof'])]) + ".pkl"
 joblib.dump(combined_eof, os.path.join(config['outpath'], fname))
+
+# %%

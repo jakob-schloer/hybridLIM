@@ -12,7 +12,7 @@ import xarray as xr
 from tqdm import tqdm
 from hyblim.model import lstm
 from hyblim.data import eof, dataloader, preproc
-from hyblim.utils import metric, enso, eval
+from hyblim.utils import metric, eval
 
 from importlib import reload
 reload(metric)
@@ -20,17 +20,17 @@ reload(metric)
 PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-def hindcast(model, dataloader, normalizer_pca, device, history, horizon):
+def hindcast(model, dataloader, normalizer_pca, device):
     targets, frcsts, time_ids = [], [], []
     with torch.no_grad():
-        unused = dataloader.dataset.n_timesteps - history - horizon  
-        for sample, aux in tqdm(dataloader):
-            x_input, x_target, _ = sample.to(device).split([history, horizon, unused], dim=1)
-            context, _ = aux['month'].to(device=device, dtype=torch.long).split([history + horizon, unused], dim=1)
+        for lim_input, target, aux in dataloader:
+            x_input, x_target = lim_input.to(device), target.to(device) 
+            context = aux['month'].to(device, dtype=torch.long) 
+            # Prediction
             x_ensemble = model(x_input, context)
 
             targets.append(x_target.cpu())
-            time_ids.append(aux['idx'][:, history:])
+            time_ids.append(aux['idx'])
             frcsts.append(x_ensemble.cpu())
 
     time_idx = torch.cat(time_ids, dim=0).to(dtype=int).numpy()
@@ -81,8 +81,7 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
     _ = model.to(device)
 
     # Hindcast in latent space
-    z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device,
-                                    history=4, horizon=24)
+    z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device)
 
     # Extended PCA with 300 components 
     n_components_full = 300 
@@ -126,20 +125,35 @@ def argument_parser():
     params = vars(parser.parse_args())
     return params
 
+# %%
 if __name__ == '__main__':
     # Specify parameters
     params = argument_parser()
+    #params = {'model_path': '/home/ecm1922/Code/hybridLIM/models/lim_lstm/30227847_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_16_layers_2_latent32_cosinelr0.0001-1e-06_bs8',
+    #          'datasplit': 'test', 'lags': [1]}
     with open(params['model_path'] + "/config.json", 'r') as f:
         config = json.load(f)
 
+
     # Load data
-    ds, datasets, dataloaders, combined_eof, scaler_pca = dataloader.load_pcdata(**config) 
+    lim_hindcast = { 
+       'train': xr.open_dataset(config['lim_path'] + "_train.nc")['z'].sel(lag=slice(1, None)),
+       'val': xr.open_dataset(config['lim_path'] + "_val.nc")['z'].sel(lag=slice(1, None)),
+       'test': xr.open_dataset(config['lim_path'] + "_test.nc")['z'].sel(lag=slice(1, None)),
+    }
+
+    # Create dataset
+    ds, datasets, dataloaders, combined_eofa, normalizer_pca = dataloader.load_pcdata_lim_ensemble(
+        lim_hindcast, **config
+    ) 
 
     # Define and load model
-    condition_dim = 12 if config['film'] else None
-    model = lstm.EncDecLSTM(input_dim=combined_eof.n_components, hidden_dim=config['hidden_dim'],
-                            num_layers=config['layers'], num_conditions=condition_dim,
-                            num_tails=config['members'], T_max=config['chrono'])
+    num_condition = 12 if config['film'] else -1
+    model = lstm.ResidualLSTM(
+        input_dim=combined_eofa.n_components, hidden_dim=config['hidden_dim'],
+        num_conditions=num_condition, num_layers=config['layers'],
+        T_max=config['chrono']
+    )
 
     # Load model with best loss
     checkpoint = torch.load(params['model_path'] + "/min_checkpoint.pt")
@@ -147,6 +161,8 @@ if __name__ == '__main__':
     lag_arr = [int(lag) for lag in params['lags']]
     scorepath = params['model_path'] + "/metrics"
     perform_hindcast_evaluation(
-        model, checkpoint, ds, dataloaders[params['datasplit']], scaler_pca, combined_eof, lag_arr, scorepath
+        model, checkpoint, ds, dataloaders[params['datasplit']], normalizer_pca, combined_eofa, lag_arr, scorepath
     ) 
 
+
+# %%

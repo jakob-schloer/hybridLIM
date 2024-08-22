@@ -36,9 +36,6 @@ class ForConvolution(object):
         return sample
 
 
-############################################
-# Dataclasses 
-############################################
 def _to_tensor(sample: dict):
     """ Impute NaNs and convert numpy arrays to torch tensors."""
     for key, value in sample.items():
@@ -55,19 +52,19 @@ def _to_tensor(sample: dict):
 
 
 class TimeSeries(Dataset):
-    def __init__(self, dataarray, n_timesteps, transform=None):
-        self.dataarray = dataarray.compute()
+    def __init__(self, data, n_timesteps, transform=None):
+        self.data = data.compute()
         self.n_timesteps = n_timesteps
         self.transform = transform
     
     def __len__(self):
-        return len(self.dataarray['time']) - self.n_timesteps - 1
+        return len(self.data['time']) - self.n_timesteps - 1
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        x_interval = self.dataarray.isel(time=slice(idx, idx+self.n_timesteps))
+        x_interval = self.data.isel(time=slice(idx, idx+self.n_timesteps))
         month = x_interval['time'].dt.month.data.astype(int) - 1
         
         sample = _to_tensor({
@@ -95,12 +92,12 @@ class TimeSeriesResidual(Dataset):
         transform (function, optional): Transform function. Defaults to None.
     """
     def __init__(self, target:xr.DataArray, lim_ensemble: xr.DataArray, transform= None):
-        self.dataset = target.compute()
+        self.data = target.compute()
         self.lim_ensemble = lim_ensemble.compute() 
         self.lag_arr = lim_ensemble['lag'].values
         self.transform = transform
 
-        assert len(self.dataset['time']) == len(self.lim_ensemble['time'])
+        assert len(self.data['time']) == len(self.lim_ensemble['time'])
 
 
     def __len__(self):
@@ -115,10 +112,10 @@ class TimeSeriesResidual(Dataset):
         sample['lim'] = self.lim_ensemble.isel(time=idx).data
         ids_target = idx + self.lag_arr
         sample['idx'] = ids_target
-        sample['target'] = self.dataset.isel(time=ids_target).data
-        sample['month'] = self.dataset['time'][ids_target].dt.month.data.astype(int) - 1
+        sample['target'] = self.data.isel(time=ids_target).data
+        sample['month'] = self.data['time'][ids_target].dt.month.data.astype(int) - 1
         sample['time'] = preproc.time2timestamp(
-                self.dataset.isel(time=ids_target)['time'].data
+                self.data.isel(time=ids_target)['time'].data
         )
         sample['lag'] = self.lag_arr
 
@@ -134,19 +131,19 @@ class SpatialTemporalData(Dataset):
     """Spatial temporal data of multible variables.. 
 
     Args:
-        dataset (xr.Dataset): Dataset with dimensions ['time', 'lat', 'lon'].
+        data (xr.Dataset): Dataset with dimensions ['time', 'lat', 'lon'].
         n_timesteps (int): Length of time-series. 
         transform ([type], optional): [description]. Defaults to None.
     """
 
-    def __init__(self, dataset: xr.Dataset, n_timesteps: int,
+    def __init__(self, data: xr.Dataset, n_timesteps: int,
                  transform=None):
         super().__init__()
 
-        self.dataset = dataset.transpose('time', 'lat', 'lon').compute()
-        self.vars = list(self.dataset.data_vars)
-        self.coords = list(self.dataset.coords)
-        self.dims = self.dataset[self.vars[0]].shape
+        self.data = data.transpose('time', 'lat', 'lon').compute()
+        self.vars = list(self.data.data_vars)
+        self.coords = list(self.data.coords)
+        self.dims = self.data[self.vars[0]].shape
         self.n_timesteps = n_timesteps
         
         self.transform = transform
@@ -154,18 +151,18 @@ class SpatialTemporalData(Dataset):
 
     def __len__(self)-> int: 
         """Number of samples in dataset."""
-        return len(self.dataset['time']) - self.n_timesteps - 1
+        return len(self.data['time']) - self.n_timesteps - 1
     
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        x_interval = self.dataset.isel(time=slice(idx, idx+self.n_timesteps))
+        x_interval = self.data.isel(time=slice(idx, idx+self.n_timesteps))
         
         sample = _to_tensor({
             'data':  np.array([x_interval[var].data for var in self.vars]),
-            'time':  preproc.time2timestamp(self.dataset['time'].data[idx]),
+            'time':  preproc.time2timestamp(self.data['time'].data[idx]),
             'month': x_interval['time'].dt.month.data.astype(int) - 1,
             'idx': np.arange(idx, idx+self.n_timesteps)
         })
@@ -198,8 +195,8 @@ class SpatialTemporalData(Dataset):
                 sample_map = sample[i, :, :, :].copy()
                 time_idx = np.arange(sample_map.shape[0])
                 coords = {f'time_idx': time_idx,
-                          'lat': self.dataset.coords['lat'],
-                          'lon': self.dataset.coords['lon']}
+                          'lat': self.data.coords['lat'],
+                          'lon': self.data.coords['lon']}
 
                 da_arr.append(xr.DataArray(
                     data=sample_map,
@@ -218,8 +215,8 @@ class SpatialTemporalData(Dataset):
                     data_map = sample[i, :, :, :].copy()
                     time_idx = np.arange(data_map.shape[0])
                     coords = {f'time_idx': time_idx,
-                              'lat': self.dataset.coords['lat'],
-                              'lon': self.dataset.coords['lon']}
+                              'lat': self.data.coords['lat'],
+                              'lon': self.data.coords['lon']}
 
                     da_arr.append(xr.DataArray(
                         data=data_map,
@@ -420,7 +417,7 @@ def load_pcdata_lim_ensemble(
 
     Args:
         datapaths (dict): _description_
-        lim_hindcast (xr.Dataset): LIM hindcast with members.
+        lim_hindcast (dict): Dictionary of hindcasts with "train", "val", "test" data.
         hist (int, optional): _description_. Defaults to 0.
         horiz (int, optional): _description_. Defaults to 24.
         n_eof (int, optional): Number of eofs. Defaults to 20.
@@ -473,29 +470,16 @@ def load_pcdata_lim_ensemble(
     z_eof_norm = normalizer_pca.fit_transform(z_eof, dim='time')
 
     # Normalize LIM hindcast
-    lim_hindcast = normalizer_pca.transform(lim_hindcast)
+    for key, z_lim in lim_hindcast.items():
+        lim_hindcast[key] = normalizer_pca.transform(z_lim)
 
     # Split in training and test data
     # ======================================================================================
-    if num_traindata is None:
-        train_period = (0, int(0.8*len(ds['time'])))
-    else:
-        idx_start = np.random.randint(0, int(0.8*len(ds['time'])) - num_traindata)
-        train_period = (idx_start, idx_start + num_traindata)
-    val_period = (int(0.8*len(ds['time'])), int(0.9*len(ds['time'])))
-    test_period = (int(0.9*len(ds['time'])), len(ds['time'])) 
+    target = dict()
+    for key in ['train', 'val', 'test']:
+        times = lim_hindcast[key]['time'].data
+        target[key] = z_eof_norm.sel(time=times)
 
-    target = dict(
-        train = z_eof_norm.isel(time=slice(*train_period)),
-        val = z_eof_norm.isel(time=slice(*val_period)),
-        test = z_eof_norm.isel(time=slice(*test_period)),
-    )
-    lim_hindcast = dict(
-        train = lim_hindcast.isel(time=slice(*train_period)),
-        val = lim_hindcast.isel(time=slice(*val_period)),
-        test = lim_hindcast.isel(time=slice(*test_period)),
-    )
-    assert np.array_equal(target['train']['time'].data, lim_hindcast['train']['time'].data)
     assert np.array_equal(target['train']['eof'].data, lim_hindcast['train']['eof'].data)
 
     # Torch dataset class

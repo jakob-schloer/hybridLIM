@@ -44,15 +44,15 @@ def make_args(ipython=False):
             train_horiz=16,
             loss_type='crps',
             gamma=0.65, #0.9,
-            epochs = 5,
-            init_lr = 5e-3,
-            min_lr = 5e-6,
+            epochs = 3,
+            init_lr = 1e-4,
+            min_lr = 1e-6,
             wandb_project='LIM+LSTM',
-            dry=True,
-            sweep=False,
+            dry=False,
             # Saving
             path=PATH + f"/../../models/limlstm/",
             postfix="",
+            evaluate=True
         )
     else:
         parser = argparse.ArgumentParser()
@@ -81,16 +81,16 @@ def make_args(ipython=False):
                             help='Weighting of loss, gamma^tau.')
         parser.add_argument('-epochs', '--epochs', default=30, type=int,
                             help='Number of epochs.')
-        parser.add_argument('-ilr', '--init_lr', default=5e-3, type=float,
+        parser.add_argument('-ilr', '--init_lr', default=1e-4, type=float,
                             help='Initial learning rate.')
-        parser.add_argument('-mlr', '--min_lr', default=5e-6, type=float,
+        parser.add_argument('-mlr', '--min_lr', default=1e-6, type=float,
                             help='Minimum learning rate for Cosineannealing.')
         parser.add_argument('-wandb', '--wandb_project', default="LIM+LSTM",
                             type=str, help='Wandb project name.')
         parser.add_argument("-dry", "--dry", action="store_true",
                             help='If set, dry run.')
         # Save model
-        parser.add_argument('-path', '--path', default=PATH + f"/../../output/lim+lstm/",
+        parser.add_argument('-path', '--path', default=PATH + f"/../../output/limlstm/",
                             type=str, help='Modelpath.')
         parser.add_argument('-postfix', '--postfix', default="", type=str,
                             help="Postfix to model folder, e.g. '_id_1'.")
@@ -121,17 +121,17 @@ def make_args(ipython=False):
     return config
 
 # Get configs
-config = make_args(ipython=True)
+config = make_args(ipython=False)
 
 # %%
 # Create training and validation dataset
 # ======================================================================================
 reload(dataloader)
-lim_hindcast = xr.concat([
-   xr.open_dataset(config['lim_path'] + "_train.nc"),
-   xr.open_dataset(config['lim_path'] + "_val.nc"),
-   xr.open_dataset(config['lim_path'] + "_test.nc"),
-], dim='time')['z'].sel(lag=slice(1, None))
+lim_hindcast = { 
+   'train': xr.open_dataset(config['lim_path'] + "_train.nc")['z'].sel(lag=slice(1, None)),
+   'val': xr.open_dataset(config['lim_path'] + "_val.nc")['z'].sel(lag=slice(1, None)),
+   'test': xr.open_dataset(config['lim_path'] + "_test.nc")['z'].sel(lag=slice(1, None)),
+}
 
 # Create dataset
 ds, datasets, dataloaders, combined_eofa, normalizer_pca = dataloader.load_pcdata_lim_ensemble(
@@ -194,21 +194,20 @@ if os.path.exists(model_path + '/final_checkpoint.pth'):
 if not os.path.exists(model_path):
     print(f"Create directoty {model_path}", flush=True)
     os.makedirs(model_path)
-torch.save(dict(config), model_path + "/config.pt")
+with open(model_path + "/config.json", 'w') as f:
+    json.dump(config, f)
 
 
 # Log to wandb
 # Initialize Weights and Biases
 runname = model_name 
-if not config['dry'] and not config['sweep']:
+if not config['dry']:
     wandb.init(config=config, name=model_name, project=config['wandb_project'])
 # %%
 # Main training loop
 # ======================================================================================
 train_dataloader, val_dataloader = dataloaders['train'], dataloaders['val']
-train_horizon = config['train_horiz']
 num_epochs = config['epochs']
-unused = len(lim_hindcast['lag']) - train_horizon
 
 # Loss trackers
 train_loss, val_loss, val_mse = [], [], []
@@ -245,6 +244,8 @@ for current_epoch in range(num_epochs):
     # 2. Training
     model.train()
     tl = 0
+    train_horizon = config['train_horiz']
+    unused = len(lim_hindcast['train']['lag']) - train_horizon
     for lim_input, target, l in train_dataloader:
         optimiser.zero_grad()
         # Split and to_device
@@ -303,7 +304,7 @@ for current_epoch in range(num_epochs):
             val_loss_min = vl 
 
 # Save model at the end
-print("Finished training and save model!", flush=True)
+print("Finished training!", flush=True)
 if model_path is not None:
     torch.save(checkpoint, model_path + f"/final_checkpoint.pt")
 
@@ -323,3 +324,16 @@ ax.legend()
 
 plt.savefig(model_path + f"/loss.png", dpi=300, bbox_inches='tight')
 
+
+# %%
+# Evaluate model
+# ======================================================================================
+from eval_limlstm import perform_hindcast_evaluation
+if config['evaluate']:
+    print("Evaluate model!", flush=True)
+    checkpoint = torch.load(model_path + "/min_checkpoint.pt")
+    lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
+    perform_hindcast_evaluation(
+        model, checkpoint, ds, dataloaders['test'], normalizer_pca, combined_eofa, lag_arr, model_path + "/metrics"
+    )
+# %%
