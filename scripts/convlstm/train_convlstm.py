@@ -1,8 +1,11 @@
 """Training script of convolutional LSTM."""
 # %%
-import os, time, wandb, argparse
+import os, time, wandb, argparse, json
 import xarray as xr
 import torch
+import lightning as pl
+from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 from importlib import reload
 from matplotlib import pyplot as plt
@@ -10,17 +13,11 @@ from hyblim import losses
 from hyblim.model import convlstm
 from hyblim.data import dataloader, eof
 
-
 PATH = os.path.dirname(os.path.abspath(__file__))
-plt.style.use(PATH + "/../../paper.mplstyle")
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 
 id = int(os.environ.get('SLURM_LOCALID', 0))
-device= torch.device("cuda", id ) if torch.cuda.is_available() else torch.device("cpu")
-print(f'Using device: {device}', flush=True)
 
-# Parameters
-# ======================================================================================
 def make_args(ipython=False):
     """
      python contextcast_train.py \
@@ -31,52 +28,52 @@ def make_args(ipython=False):
     if ipython:
         config = dict(
             # Data parameters
-            var = ['ssta', 'ssha'],
-            num_traindata=None,
-            hist = 4,
-            batch_size = 64,
+            vars = ['ssta', 'ssha'],
+            num_traindata=1200,
+            hist = 12,
+            batch_size = 16,
 
             #Model parameters
-            latent_dim=256,
+            num_channels=256,
             num_layers=2,
             film=True,
             members=16,
 
             # Training parameters
-            epochs=1,      # TODO: Only for testing
-            train_horizon=16,    # TODO: Only for testing
-            loss_type='normal_crps',
-            alpha=1.0,
+            epochs=3,      # TODO: Only for testing
+            train_horiz=16,    # TODO: Only for testing
+            loss_type='crps',
             gamma = 0.65,
-            init_lr = 1e-3,
+            init_lr = 5e-3,
             min_lr = 1e-6,
-            wandb_project='ContextCast',
-            dry=True,
+            wandb_project='SwinLSTM',
 
             # Saving
             postfix="_test",
-            path = PATH + '/../../output/contextCast/'
+            path = PATH + '/../../models/convlstm/'
         )
     else:
         parser = argparse.ArgumentParser()
         # Data
-        parser.add_argument('-hist', '--hist', default=4, type=int,
+        parser.add_argument('-vars', '--vars', nargs='+', default=['ssta', 'ssha'],
+                            help='Variables to use.')
+        parser.add_argument('-hist', '--hist', default=12, type=int,
                             help='Length of history.')
         parser.add_argument('-ntrain', '--num_traindata', default=None, type=int,
                             help="Number of training datapoints.")
-        parser.add_argument('-bs', '--batch_size', default=64, type=int,
+        parser.add_argument('-batch', '--batch_size', default=64, type=int,
                             help='Batch size.')
         # Model
         parser.add_argument('-layers', '--num_layers', default=2, type=int,
                             help='Number of LSTM layers.')
-        parser.add_argument('-latent', '--latent_dim', default=256, type=int,
+        parser.add_argument('-channels', '--num_channels', default=256, type=int,
                             help='Latent dimenison.')
         parser.add_argument("-film","--film", action="store_true",
                             help='If set, conditioning with FiLM on month.')
         parser.add_argument('-members', '--members', default=16, type=int,
                             help='Number of ensemble members.')
         # Training
-        parser.add_argument('-horiz', '--train_horizon', default=16, type=int,
+        parser.add_argument('-horiz', '--train_horiz', default=16, type=int,
                             help='Number of horizon datapoints for training.')
         parser.add_argument('-loss', '--loss_type', default="crps", type=str,
                             help="Loss type: 'mse' or 'crps'.")
@@ -100,234 +97,193 @@ def make_args(ipython=False):
 
         config = vars(parser.parse_args())
 
+    path_to_data = {
+        'ssta': PATH + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc",
+        'ssha': PATH + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc"
+    }
+    config['datapaths'] = {}
+    for var in config['vars']:
+        config['datapaths'][var] = path_to_data[var]
+
+    config['lsm_path'] = PATH + "/../../data/land_sea_mask_common.nc"
     config['horiz'] = 24
-    config['slurm_id'] = os.environ.get('SLURM_JOB_ID', 0)
+    config['name'] = 'SwinLSTM'
+    config['slurm_id'] = os.environ.get('SLURM_JOB_ID', 0000000)
 
     return config 
 
+class ConvLSTMTrainer(pl.LightningModule):
+    def __init__(self, config):
+        super(ConvLSTMTrainer, self).__init__()
+        # Save configuration for later access
+        self.save_hyperparameters()
+        self.config = config
+
+        # Define the model
+        data_channels = config['input_dim']
+        condition_num = 12 if config['film'] else -1
+        self.model = convlstm.EncDecSwinLSTM(
+                 input_dim=data_channels,
+                 num_channels=config['num_channels'],
+                 output_dim=data_channels,
+                 patch_size=(4,4),
+                 num_layers= config['num_layers'],
+                 num_conditions=condition_num,
+                 num_tails=config['members']
+        ) 
+
+
+        # Loss function
+        if self.config['loss_type'] == 'crps':
+            self.loss_class = losses.EmpiricalCRPS(reduction='none', dim=1)
+            self.loss_fn = lambda x, x_hat: self.loss_class(x.unsqueeze(1), x_hat)
+        elif self.config['loss_type'] == 'normal_crps':
+            self.loss_class = losses.NormalCRPS(reduction='none', dim=1, mode='ensemble')
+            self.loss_fn = lambda x, x_hat: self.loss_class(x, x_hat)
+        elif self.config['loss_type'] == 'mse':
+            self.loss_fn = torch.nn.MSELoss(reduction='none')
+        elif self.config['loss_type'] == 'crps_mse':
+            crps_class = losses.EmpiricalCRPS(reduction='none')
+            mse_class = torch.nn.MSELoss(reduction='none')
+            alpha = self.config['alpha']
+            self.loss_fn = lambda x, x_hat: (crps_class(x.unsqueeze(1), x_hat) 
+                                             + alpha * mse_class(x.unsqueeze(1), x_hat).mean(dim=1))
+        else:
+            raise ValueError('Loss type not recognized!')
+
+        # Decaying weight for loss over lead time
+        self.gamma_scheduler = losses.GammaWeighting(self.config['gamma'], self.config['gamma'], 1)
+        #Get lsm for loss masking
+        land_area_mask = xr.open_dataset(config['lsm_path'])['lsm']
+        self.lsm = torch.logical_not(torch.from_numpy(land_area_mask.where(land_area_mask == 0, 1).data)).to(self.device)
+        
+    def forward(self, x, context):
+        return self.model(x, context=context)
+
+    
+    def _step(self, batch, batch_idx, history, horizon):
+        sample, aux = batch
+        n_batch, n_vars, n_time, n_lat, n_lon = sample.shape 
+
+        unused = n_time - history - horizon
+        
+        x, y, _ = sample.split([history, horizon, unused], dim=2)
+        context, _ = aux['month'].to(dtype=torch.long).split(
+            [history + horizon, unused], dim=-1
+        )
+
+        x_pred = self.model(x, context=context)
+        raw_loss = self.loss_fn(y, x_pred)[:, :, :, self.lsm]
+        raw_loss = raw_loss.mean(dim=[0, 1, 3])
+        gamma = self.gamma_scheduler(raw_loss.shape[0], self.current_epoch).to(self.device).float()
+        gamma /= gamma.sum()
+        loss = (raw_loss * gamma).sum()
+
+        x_mu = x_pred.mean(dim=1)
+        mse = (x_mu - y).pow(2)[:, :, :, self.lsm].mean()
+
+        return x_pred, loss, mse
+
+    def training_step(self, batch, batch_idx):
+        hist = torch.randint(1, self.config['hist'], (1,)).item()
+        x_pred, loss, _ = self._step(batch, batch_idx, hist, self.config['train_horiz'])
+        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        hist = 4 # TODO: This should not be hardcoded
+        x_pred, loss, mse = self._step(batch, batch_idx, hist, self.config['horiz'])
+
+        self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True)
+        self.log('val_mse', mse, on_step=True, on_epoch=True, logger=True)
+        return loss
+
+    def configure_optimizers(self):
+        # Scale learning rate with batch size and number of GPUs
+        base_batch_size = 64 
+        effective_batch_size = self.config['batch_size'] * self.trainer.world_size
+        base_lr = self.config['init_lr'] 
+        scaled_lr = base_lr * (effective_batch_size / base_batch_size)
+
+
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=scaled_lr)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=optimizer, T_max=self.config['epochs'], eta_min=self.config['min_lr']
+        )
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'interval': 'epoch',
+            }
+         }
+
+
+
+# %%
+# ======================================================================================
 # Run in ipython mode
-config = make_args(ipython=False)
+ipython = False
+config = make_args(ipython)
 
 # %%
 # Load data
-# ======================================================================================
-data_path = PATH + '/../../data/processed_datasets/CESM2_piControl/'
- 
-
-filepaths = {
-        'ssta': data_path +"/ssta_lat-31_32_lon130_-70_gr1.0_norm-zscore.nc",
-        'ssha': data_path +"/ssha_lat-31_32_lon130_-70_gr1.0_norm-zscore.nc",
-}
-f_lsm = data_path + '/land-sea-mask_lat-31_32_lon130_-70_gr1.0.nc'
-
-ds, datasets, dataloaders = dataloader.load_stdata(filepaths, **config)
-train_dataloader, val_dataloader = dataloaders['train'], dataloaders['val']
-
-#Get lsm for loss masking
-land_area_mask = xr.open_dataset(f_lsm)['sftlf']
-lsm = torch.logical_not(torch.from_numpy(land_area_mask.where(land_area_mask == 0, 1).data)).to(device)
+ds, datasets, dataloaders = dataloader.load_stdata(**config)
+config['input_dim'] = len(list(ds.data_vars))
 
 # %%
-# Defining model and training parameters 
-# ======================================================================================
-reload(losses)
-# Training parameters
-num_iter_per_epoch = len(train_dataloader)
-num_epochs = config['epochs']
-gamma, train_horizon = config['gamma'], config['train_horizon']
-init_lr = config['init_lr'] * config['batch_size']/64
-min_lr = config['min_lr'] * config['batch_size']/64
-
-# Model
-data_dim = len(list(ds.data_vars))
-condition_num = 12 if config['film'] else -1
-model = models.ContextCast(
-    input_dim=data_dim, encoder_dim=config['latent_dim'], 
-    decoder_dim=config['latent_dim'], output_dim=data_dim,
-    num_layers=config['num_layers'], num_conditions=condition_num,
-    num_tails=config['members'], k_conv=7, patch_size=(1, 8, 8)
-)
-
-print(sum(p.numel() for p in model.parameters() if p.requires_grad), flush=True)
-model.to(device)
-
-# Optimizer and Scheduler
-gradscaler = torch.cuda.amp.GradScaler()
-optimiser = torch.optim.AdamW(model.parameters(), lr=init_lr)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer=optimiser, T_max=num_epochs*num_iter_per_epoch, eta_min=min_lr
-)
-
-# Loss function
-if config['loss_type']=='crps':
-    loss_class = losses.EmpiricalCRPS(reduction='none', dim=1)
-    loss_fn = lambda x, x_hat: loss_class(x.unsqueeze(1), x_hat)
-elif config['loss_type']=='normal_crps':
-    loss_class = losses.NormalCRPS(reduction='none', dim=1, mode='ensemble')
-    loss_fn = lambda x, x_hat: loss_class(x, x_hat)
-elif config['loss_type']=='mse':
-    loss_fn = nn.MSELoss(reduction='none')
-elif config['loss_type']=='crps_mse':
-    crps_class = losses.EmpiricalCRPS(reduction='none')
-    mse_class = nn.MSELoss(reduction='none')
-    alpha = config['alpha']
-    loss_fn = lambda x, x_hat: (crps_class(x.unsqueeze(1), x_hat) 
-                                + alpha * mse_class(x.unsqueeze(1), x_hat).mean(dim=1)) 
-else:
-    raise ValueError('Loss type not recognized!')
-
-gamma_scheduler = losses.GammaWeighting(gamma, gamma, 1, device)
+# Instantiate the Lightning Module
+model = ConvLSTMTrainer(config=config)
 
 # Model name
-model_type = "CSContextCast" if config['film'] else "ContextCast"
 lrschedule = f"constlr{config['init_lr']}" if config['init_lr']==config['min_lr'] else  f"cosinelr{config['init_lr']}-{config['min_lr']}"
-model_name = (f"{model_type}_g{gamma}-{config['loss_type']}_hist{config['hist']}_horiz{train_horizon}" 
-              + f"_layer{config['num_layers']}_latent{config['latent_dim']}_mem{config['members']}"
+model_name = (f"ConvLSTM_"
+              + "_".join([var for var in list(ds.data_vars)])
+              + f"_g{config['gamma']}-{config['loss_type']}_member{config['members']}"
+              + f"_nhist_{config['hist']}_nhoriz_{config['train_horiz']}"
+              + f"_layers_{config['num_layers']}_ch{config['num_channels']}"
               + f"_{lrschedule}_bs{config['batch_size']}"
               + f"{config['postfix']}")
-print(model_name, flush=True)
-
-# Check if model exists
-model_path = os.path.join(config['path'], f"{config['slurm_id']}_" + model_name)
-if os.path.exists(os.path.join(model_path, 'final_checkpoint.pt')):
-    raise ValueError('Model exists! Terminate script.')
+model_path = config['path'] + f"/{config['slurm_id']}_" +  model_name
 
 # Create directory
 if not os.path.exists(model_path):
     print(f"Create directoty {model_path}", flush=True)
     os.makedirs(model_path)
-torch.save(dict(config), model_path + "/config.pt")
+with open(model_path + "/config.json", 'w') as f:
+    json.dump(config, f)
 
-# Weights and Biases
-if not config['dry']:
-    config['path'] = model_path + model_name
-    wandb.init(config=config, name=model_name, project=config['wandb_project'])
-
-# %%
-# Main training loop 
-# ======================================================================================
-print(f'Training new model {model_name}', flush=True)
-
-#Training helper variables
-train_loss_tracker, val_loss_tracker, val_mse_tracker = [], [], []
-cycle_idx = 0
-horizon = config['horiz']
-history = config['hist']
-unused = horizon - train_horizon
-
-#Main loop
-for current_epoch in range(num_epochs):
-
-    start_time_epoch = time.time()
-    #Validation loop
-    model.eval()
-    with torch.no_grad():
-        vl = 0
-        mse = 0
-        for sample, aux in val_dataloader:
-            x, y = sample.to(device).split([history, horizon], dim = 2)
-            c = aux['month'].to(device = device, dtype = torch.long).argmax(dim = -1)
-            
-            x_pred = model(x, context=c)
-            # Loss
-            raw_loss = loss_fn(y, x_pred)[:, :, :, lsm]
-            raw_loss = raw_loss.mean(dim=[0, 1, 3])
-            gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).float()
-            gamma /= gamma.sum()
-            loss = (raw_loss * gamma).sum()
-            vl += loss.item()
-            x_mu = x_pred.mean(dim=1)
-            mse += (x_mu - y).pow(2)[:, :, :, lsm].mean()
-
-        vl /= len(val_dataloader)
-        mse /= len(val_dataloader)
-        val_loss_tracker.append(vl)
-        val_mse_tracker.append(mse)
-    
-
-    #Train loop
-    model.train()
-    tl = 0
-    for sample, aux in train_dataloader:
-        x, y, _ = sample.to(device).split([history, train_horizon, unused], dim = 2)
-        c, _ = aux['month'].to(device = device, dtype = torch.long).argmax(
-            dim = -1).split([history+train_horizon, unused], dim=-1) #Convert from one-hot to month index
-        optimiser.zero_grad()
-
-        with torch.cuda.amp.autocast(): #Mixed precision training for faster training, maybe not needed
-            x_pred = model(x, context=c)
-            # Loss
-            raw_loss = loss_fn(y, x_pred)[:, :, :, lsm]
-            raw_loss = raw_loss.mean(dim=[0, 1, 3])
-            gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).float()
-            gamma /= gamma.sum()
-            loss = (raw_loss * gamma).sum()
-
-        gradscaler.scale(loss).backward()
-        gradscaler.step(optimiser)
-        gradscaler.update()
-        tl += loss.item()
-        scheduler.step() #Warning can be ignored, is only caused by gradscaler.step() not being recognized as optimiser.step()
-
-    #Calculate loss for plotting
-    tl /= len(train_dataloader)
-    train_loss_tracker.append(tl)
-
-    #Save checkpoint
-    checkpoint = {
-                'train_loss': train_loss_tracker,
-                'val_loss': val_loss_tracker,
-                'val_mse': val_mse_tracker,
-                'epoch': current_epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimiser.state_dict(),
-            }
-
-    # Log it with wandb
-    if not config['dry']:
-        wandb.log(
-            {"train_loss": tl,
-             "val_loss": vl, 
-             "val_mse": mse,
-             'lr': scheduler.get_last_lr()[0],
-             'max_memory': torch.cuda.max_memory_allocated(device)/1e9,
-             }
-        )
-    #Print progress
-    print(f'Epoch: {current_epoch}, Train Loss: {tl:,.2e}, Val Loss: {vl:,.2e}', flush=True)
-    print(f'Elapsed time:  {(time.time() - start_time_epoch)/60 :.2f} minutes, max. mem. {torch.cuda.max_memory_allocated(device)/1e6}', flush=True)
-
-    # Save checkpoint
-    if (current_epoch + 1) % 5 == 0:
-        torch.save(checkpoint, model_path + f'/checkpoint_{current_epoch+1}.pt')
-    
-
-print("Finished training!", flush=True)
-torch.save(checkpoint, model_path + '/final_checkpoint.pt')
-
-# %%
-# Hindcast
-# ======================================================================================
-reload(hlp)
-print("Hindcast validation set!", flush=True)
-history, horizon = config['hist'], config['horiz']
-x_hindcast, time_idx = hlp.hindcast(
-    val_dataloader, model, device, history, horizon
+# Initialize Weights and Biases
+wandb_logger = WandbLogger(
+    project=config['wandb_project'],
+    name=model_name,
+    log_model=True
 )
 
-# Compute metric
-# ======================================================================================
-val_ds = datasets['val'].dataset
-lag_arr = [1, 3, 6, 9, 12, 15, 18, 24]
-
-verification_per_gridpoint, verification_per_time, nino_indices = hlp.evaluation_metric(
-    x_hindcast, time_idx, val_ds, land_area_mask, lag_arr
+# Callback
+checkpoint_callback = ModelCheckpoint(
+    monitor='val_loss', 
+    dirpath=model_path,
+    filename='best-checkpoint-{epoch:02d}-{val_loss:.2f}',
+    save_top_k=1, 
+    save_last=True,
+    mode='min',
+    save_weights_only=False,
 )
 
-# Save metrics to file
-# ======================================================================================
-print("Save evaluation to file!", flush=True)
-torch.save(verification_per_gridpoint, model_path + "/metrics_grid.pt")
-torch.save(verification_per_time, model_path + "/metrics_time.pt")
-torch.save(nino_indices, model_path + "/nino_indices.pt")
+# Trainer
+trainer = pl.Trainer(
+    max_epochs=config['epochs'],
+    accelerator='gpu',
+    devices=torch.cuda.device_count(), 
+    precision=16,  # Mixed precision
+    strategy="ddp_notebook" if ipython else "ddp",
+    logger=wandb_logger,
+    callbacks=[checkpoint_callback]
+)
+
+# Start training
+trainer.fit(model, dataloaders['train'], dataloaders['val'])
+
 # %%

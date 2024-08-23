@@ -4,6 +4,12 @@ data/*
 plots/*
 models/*
 
+# Lightning logs
+lightning_logs
+.lightning/
+
+
+
 # Weight & Biases
 wandb
 

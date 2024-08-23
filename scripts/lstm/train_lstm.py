@@ -221,7 +221,7 @@ for current_epoch in range(num_epochs):
             # Loss
             raw_loss = loss_fn(x_target, x_ensemble)
             raw_loss = raw_loss.mean(dim=[0, 2])
-            gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).float()
+            gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
             gamma /= gamma.sum()
             loss = (raw_loss * gamma).sum()
             vl += loss.item()
@@ -248,7 +248,7 @@ for current_epoch in range(num_epochs):
         # Loss
         raw_loss = loss_fn(x_target, x_ensemble)
         raw_loss = raw_loss.mean(dim=[0, 2])
-        gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).float()
+        gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
         gamma /= gamma.sum()
         loss = (raw_loss * gamma).sum()
         # Backward pass

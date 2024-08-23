@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
 
 from hyblim.data import preproc, eof
 from hyblim.model import lim
@@ -295,13 +296,18 @@ def load_stdata(datapaths: dict, lsm_path: str,
     datasets, dataloaders = {}, {}
     for key, values in data.items():
         datasets[key] = SpatialTemporalData(values, n_timesteps)
+        # Create the DataLoader with DistributedSampler
         shuffle = True if key == 'train' else False
-        dataloaders[key] = DataLoader(datasets[key],
-                                      drop_last = True,
-                                      batch_size=batch_size,
-                                      num_workers=4,
-                                      pin_memory=True,
-                                      shuffle=shuffle)
+        sampler = DistributedSampler(datasets[key], shuffle=shuffle) if torch.distributed.is_initialized() else None
+        dataloaders[key] = DataLoader(
+            datasets[key],
+            drop_last=True,
+            batch_size=batch_size,
+            num_workers=8,
+            pin_memory=True,
+            shuffle=(sampler is None) and shuffle,
+            sampler=sampler
+        )
 
     return ds, datasets, dataloaders 
 

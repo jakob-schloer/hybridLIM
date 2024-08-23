@@ -8,14 +8,14 @@ import torch
 import numpy as np
 import xarray as xr
 
-from forenso.utils import enso, metric
+from hyblim.utils import enso, metric
 
 
-def hindcast(val_dataloader, model, device, history, horizon):
+def hindcast(dataloader, model, device, history, horizon):
     """Hindcast Swin-LSTM model"""
     target, frcst_mean, frcst_std, time_ids = [], [], [], []
     with torch.no_grad():
-        for i, (sample, aux) in enumerate(val_dataloader):
+        for i, (sample, aux) in enumerate(dataloader):
             x_input, x_target = sample.to(device).split([history, horizon], dim = 2)
             c = aux['month'].to(device = device, dtype = torch.long).argmax(dim = -1)
             x_pred = model(x_input, context=c)

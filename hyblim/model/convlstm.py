@@ -79,7 +79,7 @@ class TailEnsemble(nn.Module):
         return th.stack([tail(x) for tail in self.tails], dim = self.tail_dim)
 
     
-class SwinLSTM(nn.Module):
+class EncDecSwinLSTM(nn.Module):
     def __init__(self,
                  input_dim: int,
                  num_channels: int,

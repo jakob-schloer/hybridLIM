@@ -10,7 +10,7 @@ import torch.nn as nn
 
 class GammaWeighting(nn.Module):    
     
-    def __init__(self, gamma_start, gamma_end, rampup_epochs, device):
+    def __init__(self, gamma_start, gamma_end, rampup_epochs):
         """ Gamma Weighting of loss.
 
         Implementation by @sebastianhofmann
@@ -30,14 +30,13 @@ class GammaWeighting(nn.Module):
         self.gamma_start = gamma_start
         self.gamma_end = gamma_end
         self.rampup_epochs = rampup_epochs
-        self.device = device
     
     def forward(self, steps, epoch):
         gamma = (
             self.gamma_start 
             + (self.gamma_end - self.gamma_start) * min(epoch / self.rampup_epochs, 1)
         )
-        return torch.pow(gamma, torch.arange(steps, device=self.device))
+        return torch.pow(gamma, torch.arange(steps))
 
 
 def get_statistics(prediction: torch.Tensor, dim: int = 1, mode: str = 'ensemble', epsilon: float = 1e-9):
