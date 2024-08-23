@@ -192,6 +192,77 @@ def verification_metrics_per_time(target: xr.Dataset,
     return verification_metrics
 
 
+def time_series_score(frcst: xr.Dataset, target: xr.Dataset) -> xr.Dataset:
+    """Compute time series scores.
+
+    Args:
+        frcst (xr.Dataset): Forecast of dimension (time, lat, lon).
+        target (xr.Dataset): Target data of dimension (time, lat, lon).
+    Returns:
+        scores (dict): Dictionary of scores. 
+        scores_vmonth (dict): Dictionary of scores for each verification month.
+    """
+    if 'member' in frcst.dims:
+        frcst_mean = frcst.mean(dim='member')
+        frcst_std = frcst.std(dim='member') 
+        n_members = frcst.dims['member']
+    else:
+        frcst_mean = frcst 
+        frcst_std = None
+
+    # Metrics averaged over the whole time series 
+    scores = dict() 
+    # MSE
+    mse = ((target - frcst_mean)**2).mean(dim='time', skipna=True)
+    scores['mse'] = mse
+    # RMSE skill score
+    rmse = np.sqrt(mse)
+    scores['rmse'] = rmse
+    std = target.std(dim='time', skipna=True)
+    scores['rmsess'] = 1 - rmse/std
+    # Correlation coefficient
+    scores['cc'] = xr.merge([
+            xr.corr(target[var], frcst_mean[var], dim='time') for var in target.data_vars
+    ])
+    if frcst_std is not None:
+        # CRPS
+        crps = crps_gaussian(target, frcst_mean, frcst_std)
+        crps_reference = crps_gaussian(target, xr.zeros_like(frcst_mean), std*xr.ones_like(frcst_std))
+        scores['crps'] = crps.mean(dim='time')
+        scores['crpss'] = 1 - (crps.mean(dim='time')/ crps_reference.mean(dim='time'))
+
+        # Spread to skill ratio 
+        spread = np.square(frcst_std).mean(dim='time', skipna=True)
+        scores['spread'] = spread
+        scores['spread_skill'] = np.sqrt( (n_members + 1)/ n_members ) * spread / mse 
+
+    # Metrics for each verification month 
+    # ===========================================
+    scores_vmonth = dict()
+    std_month = target.groupby(f'time.month').std(dim=('time'), skipna=True)
+
+    # MSE
+    mse_month = ((target - frcst_mean)**2).groupby(f'time.month').mean(dim=('time'), skipna=True)
+    scores_vmonth['mse'] = mse_month
+    scores_vmonth['rmse'] = np.sqrt(mse_month)
+    # RMSE skill score
+    rmse_month = np.sqrt(mse_month)
+    scores_vmonth['rmsess'] = 1 - rmse_month/std_month
+
+    if frcst_std is not None:
+        # CRPS
+        crps_month = crps_gaussian(target, frcst_mean, frcst_std).groupby(f'time.month').mean(dim=('time'))
+        scores_vmonth['crps'] = crps_month
+        scores_vmonth['crpsss'] = crps_month / std_month
+
+        # Spread to skill ratio 
+        spread_month = np.square(frcst_std).groupby('time.month').mean(dim='time')
+        scores_vmonth['spread'] = spread_month
+        scores_vmonth['spread_skill'] = np.sqrt( (n_members + 1)/ n_members ) * spread_month / mse_month 
+
+    return scores, scores_vmonth 
+
+
 def frcst_metrics_per_month(target: xr.Dataset, frcst: xr.Dataset) -> dict:
     """Metrics for forecast in data space for each month seperately.
 
@@ -343,3 +414,27 @@ def listofdicts_to_dictofxr(list_of_dict, dim_key='lag'):
                             compat='equals', join='inner') 
         dict_of_xr[key] = tmp_ds 
     return dict_of_xr
+
+
+def torch_to_xarray(tensor, var_names, dims, **coords):
+    """ Convert a tensor to an xarray.Dataset with the first dimension as variables and the remaining 
+    dimensions specified by the coords kwargs.
+
+    Parameters:
+        tensor (torch.Tensor): Input tensor of shape (batch, members, vars, ...).
+        var_names (list of str): List of variable names corresponding to the first dimension.
+        dims (list of str): List of dimension names for the remaining dimensions.
+        **coords: Keyword arguments where each key is a dimension name and each value is a list or array of coordinate values.
+
+    Returns:
+        xr.Dataset: Dataset with each variable as a DataArray of dimensions specified by the coords kwargs.
+    """
+    assert tensor.shape[0] == len(var_names), "The length of var_names must match the size of the first dimension of the tensor."
+    da_vars = {}
+    for i, var_name in enumerate(var_names):
+        da_vars[var_name] = xr.DataArray(
+            tensor[i, ...].detach().cpu().numpy(),
+            dims=dims,
+            coords=coords 
+        )
+    return xr.Dataset(da_vars)

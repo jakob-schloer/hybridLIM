@@ -122,8 +122,8 @@ def latent_evaluation(z_hindcast: np.ndarray,
 
         # Nino indices
         nino_index = {
-            'target': enso.get_nino_indices(x_target['ssta'], antimeridian=True),
-            'frcst': enso.get_nino_indices(x_hindcast['ssta'], antimeridian=True),
+            'target': enso.get_nino_indices(x_target['ssta']),
+            'frcst': enso.get_nino_indices(x_hindcast['ssta']),
             'lag': lag
         }
         nino_indices.append(nino_index)
