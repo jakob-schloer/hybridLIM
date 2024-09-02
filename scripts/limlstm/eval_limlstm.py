@@ -59,7 +59,8 @@ def hindcast(model, dataloader, normalizer_pca, device):
 def perform_hindcast_evaluation(model: torch.nn.Module, 
                                 checkpoint: dict, 
                                 ds: xr.Dataset, 
-                                dataloader: torch.utils.data.DataLoader,
+                                dataloaders: torch.utils.data.DataLoader,
+                                datasplit: str,
                                 scaler_pca: preproc.Normalizer, 
                                 combined_eof: eof.CombinedEOF, 
                                 lag_arr: list, 
@@ -70,7 +71,8 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
         model (torch.nn.Module): LSTM model
         checkpoint (dict): Checkpoint of model
         ds (xr.Dataset): Dataset
-        dataloader (torch.utils.data.DataLoader): Dataloader
+        dataloaders (dict): Dictionary of dataloader (torch.utils.data.DataLoader)
+        datasplit (str): Datasplit to evaluate, i.e. 'train', 'val', 'test'
         scaler_pca (preproc.Normalizer): Normalizer for PCA space
         combined_eof (eof.CombinedEOF): Combined EOF object
         lag_arr (list): List of lags to compute metrics for
@@ -81,7 +83,7 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
     _ = model.to(device)
 
     # Hindcast in latent space
-    z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device)
+    z_hindcast, time_idx = hindcast(model, dataloaders[datasplit], scaler_pca, device)
 
     # Extended PCA with 300 components 
     n_components_full = 300 
@@ -94,7 +96,7 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
     extended_eof = eof.CombinedEOF(eofa_list, vars=list(ds.data_vars))
 
     # Verification metrics
-    times = dataloader.dataset.data['time'].data
+    times = dataloaders[datasplit].dataset.data['time'].data
     ds_target = ds.sel(time=times)
     verification_per_gridpoint, verification_per_time, nino_indices = eval.latent_evaluation(
         z_hindcast['frcst'], time_idx, times, combined_eof, ds_target, lag_arr, extended_eof  
@@ -105,13 +107,12 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
     if not os.path.exists(scorepath):
         os.makedirs(scorepath)
     
-    years = (ds_target['time.year'].min().values, ds_target['time.year'].max().values)
     for key, score in verification_per_gridpoint.items():
-        score.to_netcdf(scorepath + f"/gridscore_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        score.to_netcdf(scorepath + f"/gridscore_{key}_{datasplit}.nc")
     for key, score in verification_per_time.items():
-        score.to_netcdf(scorepath + f"/timescore_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        score.to_netcdf(scorepath + f"/timescore_{key}_{datasplit}.nc")
     for key, nino_idx in nino_indices.items():
-        nino_idx.to_netcdf(scorepath + f"/nino_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        nino_idx.to_netcdf(scorepath + f"/nino_{key}_{datasplit}.nc")
 
     return None
 
@@ -119,7 +120,7 @@ def perform_hindcast_evaluation(model: torch.nn.Module,
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-path', '--model_path', type=str, required=True, help='Path to model')
-    parser.add_argument('-data', '--datasplit', type=str, default='test', help='Datasplit to evaluate')
+    parser.add_argument('-datasplit', '--datasplit', type=str, default='test', help='Datasplit to evaluate')
     parser.add_argument('-lags', '--lags', nargs='+', default=[1, 3, 6, 9, 12, 15, 18, 21, 24],
                         help='Lags to compute metrics for.')
     params = vars(parser.parse_args())
@@ -161,7 +162,7 @@ if __name__ == '__main__':
     lag_arr = [int(lag) for lag in params['lags']]
     scorepath = params['model_path'] + "/metrics"
     perform_hindcast_evaluation(
-        model, checkpoint, ds, dataloaders[params['datasplit']], normalizer_pca, combined_eofa, lag_arr, scorepath
+        model, checkpoint, ds, dataloaders, params['datasplit'], normalizer_pca, combined_eofa, lag_arr, scorepath
     ) 
 
 

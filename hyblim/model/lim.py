@@ -464,6 +464,7 @@ class CSLIM():
                 Defaults to 3.
         """
         n_components, n_times = data.shape
+        assert n_times > n_components, "Number of time points must be much bigger than n_components."
         n_years = n_times/12
 
         x = data[:, :-self.tau_0]

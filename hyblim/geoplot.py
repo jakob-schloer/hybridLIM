@@ -167,7 +167,7 @@ def plot_map(dmap, ax=None, vmin=None, vmax=None, eps=0.1,
         raise ValueError(f"Specified bar={bar} is not defined!")
 
     if transform is None:
-        transform = ctp.crs.PlateCarree(central_longitude=central_longitude)
+        transform = ctp.crs.PlateCarree(central_longitude=0)
 
     # plot map
     im = ax.pcolormesh(
@@ -245,7 +245,7 @@ def plot_contourf(dmap, ax=None, label=None,
         colors[idx] = centercolor 
 
     if transform is None:
-        transform = ctp.crs.PlateCarree(central_longitude=central_longitude)
+        transform = ctp.crs.PlateCarree(central_longitude=0)
 
     # plot map
     im = ax.contourf(
@@ -307,7 +307,7 @@ def plot_contour(dmap, ax=None,
         kwargs_pl['levels'] = np.arange(vmin, vmax+eps-1e-5, eps)
     
     if transform is None:
-        transform = ctp.crs.PlateCarree(central_longitude=central_longitude)
+        transform = ctp.crs.PlateCarree(central_longitude=0)
     
 
     # plot map

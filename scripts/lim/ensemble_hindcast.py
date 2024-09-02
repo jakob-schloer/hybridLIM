@@ -78,9 +78,7 @@ for i, var in enumerate(ds.data_vars):
     print(f"Create EOF of {var}!")
     n_components = config['n_eof'][i] if isinstance(config['n_eof'], list) else config['n_eof'] 
     eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components)
-    eofa.fit(
-        ds[var].isel(time=slice(None, int(0.8*len(ds['time']))))
-    )
+    eofa.fit(ds[var])
     eofa_lst.append(eofa)
 combined_eof = eof.CombinedEOF(eofa_lst, vars=list(ds.data_vars))
 
@@ -94,11 +92,12 @@ else:
     idx_start = np.random.randint(0, int(0.8*len(ds['time'])) - config['num_traindata'])
     train_period = (idx_start, idx_start + config['num_traindata'])
 val_period = (int(0.8*len(ds['time'])), int(0.9*len(ds['time'])))
-test_period = (int(0.9*len(ds['time']), len(ds['time']))) 
+test_period = (int(0.9*len(ds['time'])), len(ds['time'])) 
 
 data = dict(
     train = combined_eof.transform(ds.isel(time=slice(*train_period))),
     val = combined_eof.transform(ds.isel(time=slice(*val_period))),
+    test = combined_eof.transform(ds.isel(time=slice(*test_period))),
 )
 
 # %% 
@@ -108,7 +107,7 @@ reload(lim)
 if config['lim_type'] == 'stlim':
     model = lim.LIM(tau=1)
     print("Fit ST-LIM", flush=True)
-    model.fit(data['train'].data)
+    model.fit(data['train'].data.T)
     Q = model.noise_covariance()
 
 elif config['lim_type'] == 'cslim':
@@ -116,7 +115,7 @@ elif config['lim_type'] == 'cslim':
     average_window=3
     model = lim.CSLIM(tau=1)
     print("Fit CS-LIM", flush=True)
-    model.fit(data['train'].data, start_month, average_window=average_window)
+    model.fit(data['train'].data.T, start_month, average_window=average_window)
     Q = model.noise_covariance()
 else:
     raise ValueError("lim_type not recognized!")
@@ -178,3 +177,5 @@ for key, hindcast_pcs in data.items():
                          + f"_{'-'.join(ds.data_vars)}"
                          + f"_eof{config['n_eof']}_{key}.nc")
 
+
+# %%

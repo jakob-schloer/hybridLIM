@@ -103,6 +103,8 @@ def argument_parser():
     parser.add_argument('-path', '--path', type=str, required=True, help='Path to model')
     parser.add_argument('-lags', '--lags', nargs='+', default=[1, 3, 6, 9, 12, 15, 18, 21, 24],
                         help='Lags to compute metrics for.')
+    parser.add_argument('-datasplit', '--datasplit', type=str, default='test',
+                        help='Datasplit to compute metrics for.')
     params = vars(parser.parse_args())
     return params
 
@@ -166,11 +168,10 @@ if __name__ == '__main__':
     if not os.path.exists(scorepath):
         os.makedirs(scorepath)
 
-    years = (lim_hindcast['time.year'].min().values, lim_hindcast['time.year'].max().values)
     for key, score in verification_per_gridpoint.items():
-        score.to_netcdf(scorepath + f"/gridscore_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        score.to_netcdf(scorepath + f"/gridscore_{key}_{params['datasplit']}.nc")
     for key, score in verification_per_time.items():
-        score.to_netcdf(scorepath + f"/timescore_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        score.to_netcdf(scorepath + f"/timescore_{key}_{params['datasplit']}.nc")
     for key, nino_idx in nino_indices.items():
-        nino_idx.to_netcdf(scorepath + f"/nino_{key}_{years[0]:04d}-{years[1]:04d}.nc")
+        nino_idx.to_netcdf(scorepath + f"/nino_{key}_{params['datasplit']}.nc")
     # %%
