@@ -171,7 +171,7 @@ elif config['loss_type']=='mse':
 else:
     raise ValueError('Loss type not recognized!')
 
-gamma_scheduler = losses.GammaWeighting(config['gamma'], config['gamma'], 1, device)
+gamma_scheduler = losses.GammaWeighting(config['gamma'], config['gamma'], 1)
 
 # Model name
 model_type = "LIM-LSTM" 
@@ -334,6 +334,6 @@ if config['evaluate']:
     checkpoint = torch.load(model_path + "/min_checkpoint.pt")
     lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
     perform_hindcast_evaluation(
-        model, checkpoint, ds, dataloaders['test'], normalizer_pca, combined_eofa, lag_arr, model_path + "/metrics"
+        model, checkpoint, ds, dataloaders, 'test', normalizer_pca, combined_eofa, lag_arr, model_path + "/metrics"
     )
 # %%

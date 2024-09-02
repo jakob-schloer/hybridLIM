@@ -241,7 +241,7 @@ class CombinedEOF:
 
         return np.concatenate(x, axis=1)
     
-    def reconstruction(self, z: np.ndarray, times: np.ndarray=None) -> xr.Dataset:
+    def reconstruction(self, z: np.ndarray, times: np.ndarray) -> xr.Dataset:
         """Transform PC to data space.
 
         Args:

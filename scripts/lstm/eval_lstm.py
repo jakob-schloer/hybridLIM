@@ -150,3 +150,5 @@ if __name__ == '__main__':
         model, checkpoint, ds, dataloaders[params['datasplit']], scaler_pca, combined_eof, lag_arr, scorepath
     ) 
 
+
+# %%

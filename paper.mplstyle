@@ -765,7 +765,7 @@ figure.autolayout:  True
 savefig.bbox:       tight    # {tight, standard}
 savefig.transparent: True     # setting that controls whether figures are saved with a
 
-font.size:          10.0
+font.size:          12 
 text.usetex:        False   # use latex for all text handling. The following fonts
 
 legend.frameon:     True     # if True, draw the legend on a background patch

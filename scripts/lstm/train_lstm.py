@@ -161,7 +161,7 @@ elif config['loss_type']=='mse':
 else:
     raise ValueError('Loss type not recognized!')
 
-gamma_scheduler = losses.GammaWeighting(config['gamma'], config['gamma'], 1, device)
+gamma_scheduler = losses.GammaWeighting(config['gamma'], config['gamma'], 1)
 
 
 # Model name
