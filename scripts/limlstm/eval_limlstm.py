@@ -130,7 +130,7 @@ def argument_parser():
 if __name__ == '__main__':
     # Specify parameters
     params = argument_parser()
-    #params = {'model_path': '/home/ecm1922/Code/hybridLIM/models/lim_lstm/30227847_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_16_layers_2_latent32_cosinelr0.0001-1e-06_bs8',
+    #params = {'model_path': "/home/ecm1922/Code/hybridLIM/models/limlstm/33119203_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_1_latent64_cosinelr0.001-1e-06_bs64",
     #          'datasplit': 'test', 'lags': [1]}
     with open(params['model_path'] + "/config.json", 'r') as f:
         config = json.load(f)

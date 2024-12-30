@@ -233,7 +233,7 @@ class ResidualLSTM(nn.Module):
             x_t = x_input[:, t,:]
             z_t = self.processor['to_latent'](x_t.flatten(start_dim=1))
             # Conditioning
-            u_t = self.processor['embedding'](u[:,t]) if u is not None else None 
+            u_t = self.processor['embedding'](u[:,t]) if self.use_film else None 
 
             # LSTM Decoder
             for j, lstm in enumerate(self.processor['decoder']):
