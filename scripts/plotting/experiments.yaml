@@ -1,215 +1,217 @@
-- name: LIM
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha
-  color: darkblue
-  num_data: null
+modelpath: "../../models/"
+experiments:
+  - name: LIM
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha
+    color: darkblue
+    num_data: null
 
-- name: LIM (n600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_600
-  color: null
-  num_data: 600
+  - name: LIM (n600)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_600
+    color: null
+    num_data: 600
 
-- name: LIM (n1200)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_1200
-  color: null
-  num_data: 1200
+  - name: LIM (n1200)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_1200
+    color: null
+    num_data: 1200
 
-- name: LIM (n2400)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_2400
-  color: null
-  num_data: 2400
+  - name: LIM (n2400)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_2400
+    color: null
+    num_data: 2400
 
-- name: LIM (n3600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_3600
-  color: null
-  num_data: 3600
+  - name: LIM (n3600)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_3600
+    color: null
+    num_data: 3600
 
-- name: LIM (n6000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_6000
-  color: null
-  num_data: 6000
+  - name: LIM (n6000)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_6000
+    color: null
+    num_data: 6000
 
-- name: LIM (n9000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_9000
-  color: null
-  num_data: 9000
+  - name: LIM (n9000)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_9000
+    color: null
+    num_data: 9000
 
-- name: LIM (n12000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_12000
-  color: null
-  num_data: 12000
+  - name: LIM (n12000)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_12000
+    color: null
+    num_data: 12000
 
-- name: LIM (n18000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lim/cslim_ssta-ssha/num_traindata/n_18000
-  color: null
-  num_data: 18000
+  - name: LIM (n18000)
+    paths:
+      - ${modelpath}/lim/cslim_ssta-ssha/num_traindata/n_18000
+    color: null
+    num_data: 18000
 
-- name: LIM+LSTM
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
-  color: darkred
-  num_data: null
+  - name: LIM+LSTM
+    paths:
+      - ${modelpath}/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
+    color: darkred
+    num_data: null
 
-- name: LIM+LSTM (n600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_600/30237855_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_600
-  color: null
-  num_data: 600
+  - name: LIM+LSTM (n600)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/30237855_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_600
+    color: null
+    num_data: 600
 
-- name: LIM+LSTM (n1200)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_1200/30237857_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_1200
-  color: null
-  num_data: 1200
+  - name: LIM+LSTM (n1200)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/30237857_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_1200
+    color: null
+    num_data: 1200
 
-- name: LIM+LSTM (n2400)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_2400/30237858_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_2400
-  color: null
-  num_data: 2400
+  - name: LIM+LSTM (n2400)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/30237858_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_2400
+    color: null
+    num_data: 2400
 
-- name: LIM+LSTM (n3600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_3600/30237859_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_3600
-  color: null
-  num_data: 3600
+  - name: LIM+LSTM (n3600)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/30237859_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_3600
+    color: null
+    num_data: 3600
 
-- name: LIM+LSTM (n6000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_6000/30237860_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_6000
-  color: null
-  num_data: 6000
+  - name: LIM+LSTM (n6000)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/30237860_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_6000
+    color: null
+    num_data: 6000
 
-- name: LIM+LSTM (n9000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_9000/30237861_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_9000
-  color: null
-  num_data: 9000
+  - name: LIM+LSTM (n9000)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/30237861_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_9000
+    color: null
+    num_data: 9000
 
-- name: LIM+LSTM (n12000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_12000/30237862_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_12000
-  color: null
-  num_data: 12000
+  - name: LIM+LSTM (n12000)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/30237862_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_12000
+    color: null
+    num_data: 12000
 
-- name: LIM+LSTM (n18000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/limlstm/num_traindata/ntrain_18000/30237863_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_18000
-  color: null
-  num_data: 18000
+  - name: LIM+LSTM (n18000)
+    paths:
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/30237863_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_18000
+    color: null
+    num_data: 18000
 
-- name: LSTM
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
-  color: gold
-  num_data: null
+  - name: LSTM
+    paths:
+      - ${modelpath}/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
+    color: gold
+    num_data: null
 
-- name: LSTM (n600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_600/598258_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_600
-  color: null
-  num_data: 600
+  - name: LSTM (n600)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_600/598258_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_600
+    color: null
+    num_data: 600
 
-- name: LSTM (n1200)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_1200/598259_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_1200
-  color: null
-  num_data: 1200
+  - name: LSTM (n1200)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/598259_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_1200
+    color: null
+    num_data: 1200
 
-- name: LSTM (n2400)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_2400/598260_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_2400
-  color: null
-  num_data: 2400
+  - name: LSTM (n2400)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/598260_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_2400
+    color: null
+    num_data: 2400
 
-- name: LSTM (n3600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_3600/598261_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_3600
-  color: null
-  num_data: 3600
+  - name: LSTM (n3600)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/598261_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_3600
+    color: null
+    num_data: 3600
 
-- name: LSTM (n6000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_6000/598262_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_6000
-  color: null
-  num_data: 6000
+  - name: LSTM (n6000)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/598262_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_6000
+    color: null
+    num_data: 6000
 
-- name: LSTM (n9000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_9000/598263_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_9000
-  color: null
-  num_data: 9000
+  - name: LSTM (n9000)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/598263_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_9000
+    color: null
+    num_data: 9000
 
-- name: LSTM (n12000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_12000/598264_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_12000
-  color: null
-  num_data: 12000
+  - name: LSTM (n12000)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/598264_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_12000
+    color: null
+    num_data: 12000
 
-- name: LSTM (n18000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/lstm/num_traindata/ntrain_18000/598265_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_18000
-  color: null
-  num_data: 18000
+  - name: LSTM (n18000)
+    paths:
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/598265_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_18000
+    color: null
+    num_data: 18000
 
-- name: ConvLSTM
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/30458451_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32
-  color: darkorange
-  num_data: null
+  - name: ConvLSTM
+    paths:
+      - ${modelpath}/convlstm/30458451_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32
+    color: darkorange
+    num_data: null
 
-- name: ConvLSTM (n600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_600/30458452_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_600
-  color: null
-  num_data: 600
+  - name: ConvLSTM (n600)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_600/30458452_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_600
+    color: null
+    num_data: 600
 
-- name: ConvLSTM (n1200)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_1200/30458454_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_1200
-  color: null
-  num_data: 1200
+  - name: ConvLSTM (n1200)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_1200/30458454_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_1200
+    color: null
+    num_data: 1200
 
-- name: ConvLSTM (n2400)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_2400/30458455_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_2400
-  color: null
-  num_data: 2400
+  - name: ConvLSTM (n2400)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_2400/30458455_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_2400
+    color: null
+    num_data: 2400
 
-- name: ConvLSTM (n3600)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_3600/30458457_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_3600
-  color: null
-  num_data: 3600
+  - name: ConvLSTM (n3600)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_3600/30458457_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_3600
+    color: null
+    num_data: 3600
 
-- name: ConvLSTM (n6000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_6000/30458462_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_6000
-  color: null
-  num_data: 6000
+  - name: ConvLSTM (n6000)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_6000/30458462_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_6000
+    color: null
+    num_data: 6000
 
-- name: ConvLSTM (n9000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_9000/30458463_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_9000
-  color: null
-  num_data: 9000
+  - name: ConvLSTM (n9000)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_9000/30458463_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_9000
+    color: null
+    num_data: 9000
 
-- name: ConvLSTM (n12000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_12000/30458466_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_12000
-  color: null
-  num_data: 12000
+  - name: ConvLSTM (n12000)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_12000/30458466_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_12000
+    color: null
+    num_data: 12000
 
-- name: ConvLSTM (n18000)
-  paths:
-    - /home/ecm1922/Code/hybridLIM/models/convlstm/num_traindata/ntrain_18000/30458472_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_18000
-  color: null
-  num_data: 18000
+  - name: ConvLSTM (n18000)
+    paths:
+      - ${modelpath}/convlstm/num_traindata/ntrain_18000/30458472_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_18000
+    color: null
+    num_data: 18000

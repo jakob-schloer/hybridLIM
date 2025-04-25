@@ -1,34 +1,47 @@
-[tool.poetry]
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "hyblim"
 version = "0.1.0"
 description = "Hybrid LIM for ENSO forecasting."
-authors = ["Jakob Schloer <jakob.schloer@uni-tuebingen.de>"]
-license = "Creative Commons Attribution 4.0 International"
+authors = [
+    {name = "Jakob Schloer", email = "jakob.schloer@uni-tuebingen.de"}
+]
+license = {text = "Creative Commons Attribution 4.0 International"}
 readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4.0",
+    "ipython>=8.26.0",
+    "jupyter>=1.0.0",
+    "xarray>=2024.7.0",
+    "netCDF4>=1.7.1.post2",
+    "pandas>=2.2.2",
+    "numpy>=2.0.1",
+    "matplotlib>=3.9.1.post1",
+    "scikit-learn>=1.5.1",
+    "tqdm>=4.66.5",
+    "nc-time-axis>=1.4.1",
+    "einops>=0.8.0",
+    "scipy>=1.14.0",
+    "wandb>=0.17.6",
+    "joblib>=1.4.2",
+    "lightning>=2.4.0",
+    "cartopy>=0.23.0",
+    "dask>=2024.8.1",
+    "seaborn>=0.13.2",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific :: Oceanic Science",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-torch = "^2.4.0"
-ipython = "^8.26.0"
-jupyter = "^1.0.0"
-xarray = "^2024.7.0"
-netCDF4 = "^1.7.1.post2"
-pandas = "^2.2.2"
-numpy = "^2.0.1"
-matplotlib = "^3.9.1.post1"
-scikit-learn = "^1.5.1"
-tqdm = "^4.66.5"
-nc-time-axis = "^1.4.1"
-einops = "^0.8.0"
-scipy = "^1.14.0"
-wandb = "^0.17.6"
-joblib = "^1.4.2"
-lightning = "^2.4.0"
-cartopy = "^0.23.0"
-dask = "^2024.8.1"
-seaborn = "^0.13.2"
 
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.setuptools]
+packages = ["hyblim"]
+package-dir = {"" = "."}
