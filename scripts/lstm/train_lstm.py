@@ -178,7 +178,7 @@ print(model_name, flush=True)
 
 # Check if model exists
 model_path = config['path'] + f"/{config['slurm_id']}_" +  model_name
-if os.path.exists(model_path + '/final_checkpoint.pth'):
+if os.path.exists(model_path + '/final_checkpoint.pt'):
     raise ValueError('Model exists! Terminate script.')
 
 # Create directory
@@ -190,7 +190,8 @@ with open(model_path + "/config.json", 'w') as f:
 
 # Initialize Weights and Biases
 runname = model_name 
-wandb.init(config=config, name=model_name, project=config['wandb_project'])
+if not config['dry']:
+    wandb.init(config=config, name=model_name, project=config['wandb_project'])
 
 # %%
 # Training loop

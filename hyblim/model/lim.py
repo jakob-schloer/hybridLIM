@@ -187,7 +187,7 @@ class LIM:
 
         eps = 1e-5
         if np.max(np.abs(np.imag(w))) > eps:
-            print(f"WARNING: Imaginary part of max eigval of Q are {np.max(np.abs(np.imag(w_Q)))}!")
+            print(f"WARNING: Imaginary part of max eigval of Q are {np.max(np.abs(np.imag(w)))}!")
 
         # Rescale Q if eigenvalues are negative
         if np.min(w) < 0:

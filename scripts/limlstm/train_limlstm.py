@@ -59,7 +59,7 @@ def make_args(ipython=False):
         # Data
         parser.add_argument('-v', '--vars', nargs='+', default=['ssta', 'ssha'],
                             help='Variable names used.')
-        parser.add_argument('-eof', '--n_eof', nargs='+', default=[20, 10],
+        parser.add_argument('-eof', '--n_eof', nargs='+', default=[20, 10], type=int,
                             help="Number of eof components for LSTM, the LIM uses 20 only.")
         parser.add_argument('-ntrain', '--num_traindata', default=None, type=int,
                             help="Number of training datapoints.")
@@ -107,9 +107,9 @@ def make_args(ipython=False):
     config['lsm_path'] = PATH + "/../../data/land_sea_mask_common.nc"
 
     if config['num_traindata'] is not None:
-        config['lim_path'] = PATH + f"/../../models/lim/cslim_{'-'.join(map(str, config['vars']))}/num_traindata/n_{config['num_traindata']}/cslim_hindcast_{'-'.join(map(str, config['vars']))}_eof20"
+        config['lim_path'] = PATH + f"/../../models/lim/cslim_{'-'.join(map(str, config['vars']))}/num_traindata/n_{config['num_traindata']}/cslim_hindcast_{'-'.join(map(str, config['vars']))}_eof{'-'.join(map(str, config['n_eof']))}"
     else:
-        config['lim_path'] = PATH + f"/../../models/lim/cslim_{'-'.join(map(str, config['vars']))}/cslim_hindcast_{'-'.join(map(str, config['vars']))}_eof20"
+        config['lim_path'] = PATH + f"/../../models/lim/cslim_{'-'.join(map(str, config['vars']))}/cslim_hindcast_{'-'.join(map(str, config['vars']))}_eof{'-'.join(map(str, config['n_eof']))}"
 
     config['horiz'] = 24
     config['slurm_id'] = os.environ.get('SLURM_JOB_ID', 0000000)
@@ -187,7 +187,7 @@ print(model_name, flush=True)
 
 # Check if model exists
 model_path = config['path'] + f"/{config['slurm_id']}_" + model_name
-if os.path.exists(model_path + '/final_checkpoint.pth'):
+if os.path.exists(model_path + '/final_checkpoint.pt'):
     raise ValueError('Model exists! Terminate script.')
 
 # Create directory

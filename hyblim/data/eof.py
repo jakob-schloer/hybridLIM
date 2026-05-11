@@ -156,7 +156,7 @@ class EmpiricalOrthogonalFunctionAnalysis:
         Returns:
             Cx (np.ndarray): Covariances in data space of shape (n_data, n_data). 
         """
-        A = self.pca.compontents
+        A = self.pca.components_
         Cx = A.T @ Cz @ A 
 
         return Cx
@@ -280,7 +280,7 @@ class CombinedEOF:
         for eofa in self.eofa_lst:
             n_end = n_start + eofa.n_components
             C_eof_var = C_eof[n_start: n_end, n_start: n_end]
-            A = eofa.pca.compontents
+            A = eofa.pca.components_
             C_data.append(
                 A.T @ C_eof_var @ A 
             )

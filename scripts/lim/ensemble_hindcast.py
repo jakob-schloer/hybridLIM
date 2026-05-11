@@ -175,7 +175,7 @@ for key, hindcast_pcs in data.items():
     z_hindcast_ensemble.to_netcdf(outpath 
                          + f"/{config['lim_type']}_hindcast"
                          + f"_{'-'.join(ds.data_vars)}"
-                         + f"_eof{config['n_eof']}_{key}.nc")
+                         + f"_eof{'-'.join(map(str, config['n_eof']))}_{key}.nc")
 
 
 # %%
