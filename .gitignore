@@ -3,6 +3,8 @@ slurm/
 data/*
 plots/*
 models/*
+ecsbatch.*
+slurm-*.out
 
 # Lightning logs
 lightning_logs

@@ -1,0 +1,53 @@
+
+paths:
+  data:
+    ssta: "/hpcperm/ecm1922/Projects/hybridLIM/data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc"
+    ssha: "/hpcperm/ecm1922/Projects/hybridLIM/data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc"
+  land_sea_mask: "/hpcperm/ecm1922/Projects/hybridLIM/data/land_sea_mask_common.nc"
+  model: "/hpcperm/ecm1922/Projects/hybridLIM/models/lim/cslim_ssta-ssha/metrics"
+  plot: "/hpcperm/ecm1922/Projects/hybridLIM/plots/lim/cslim_ssta-ssha/"
+
+
+dataloader_cesm2:
+  lsm: ${paths.land_sea_mask}
+  variables:
+    ssta:
+      path: ${paths.data.ssta}
+      preprocess:
+        normalizer: 'zscore'
+        pca:
+          n_components: 20
+    ssha:
+      path: ${paths.data.ssha}
+      preprocess:
+        normalizer: 'zscore'
+        pca:
+          n_components: 10
+  split:
+    training: [0, 0.8] # in percent [0,1] or number of data points
+    validation: [0.8, 0.9] # in percent [0,1] or number of data points
+    test: [0.9, 1] # in percent [0,1] or number of data points
+
+dataloader_oras5:
+  lsm: ${paths.land_sea_mask}
+  variables:
+    ssta:
+      path: /hpcperm/ecm1922/Projects/hybridLIM/data/oras5/ssta_lat-31_33_lon130_290_gr1.0.nc
+      preprocess:
+        normalizer: 'zscore'
+        pca:
+          n_components: 20
+    ssha:
+      path: /hpcperm/ecm1922/Projects/hybridLIM/data/oras5/ssha_lat-31_33_lon130_290_gr1.0.nc
+      preprocess:
+        normalizer: 'zscore'
+        pca:
+          n_components: 10
+  split:
+    training: [0, 0.8] # in percent [0,1] or number of data points
+    validation: [0.8, 0.9] # in percent [0,1] or number of data points
+    test: [0.9, 1] # in percent [0,1] or number of data points
+
+model:
+  type: cslim
+  tau0: 1

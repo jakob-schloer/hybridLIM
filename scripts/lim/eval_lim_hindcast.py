@@ -59,7 +59,6 @@ def hindcast_evaluation(
     else:
         extended_eof = None
 
-    lag_arr = params["lags"]
     verification_per_gridpoint, verification_per_time, nino_indices = [], [], []
     for lag in lag_arr:
         # Transform hindcast to grid space

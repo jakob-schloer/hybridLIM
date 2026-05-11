@@ -5,6 +5,7 @@
 @Contact :   jakob.schloer@uni-tuebingen.de
 """
 
+# %%
 import argparse
 import json
 import os
@@ -24,14 +25,15 @@ from hyblim.utils import metric
 reload(metric)
 
 PATH = os.path.dirname(os.path.abspath(__file__))
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def hindcast(model, dataloader, normalizer_pca, device):
+def hindcast(model, dataloader, normalizer_pca):
     targets, frcsts, time_ids = [], [], []
     with torch.no_grad():
         for lim_input, target, aux in dataloader:
-            x_input, x_target = lim_input.to(device), target.to(device)
-            context = aux["month"].to(device, dtype=torch.long)
+            x_input, x_target = lim_input.to(DEVICE), target.to(DEVICE)
+            context = aux["month"].to(DEVICE, dtype=torch.long)
             # Prediction
             x_ensemble = model(x_input, context)
 
@@ -69,7 +71,6 @@ def hindcast(model, dataloader, normalizer_pca, device):
 
 def perform_hindcast_evaluation(
     model: torch.nn.Module,
-    checkpoint: dict,
     ds: xr.Dataset,
     dataloaders: torch.utils.data.DataLoader,
     datasplit: str,
@@ -91,12 +92,8 @@ def perform_hindcast_evaluation(
         lag_arr (list): List of lags to compute metrics for
         scorepath (str): Path to save metrics
     """
-    model.load_state_dict(checkpoint["model_state_dict"])
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    _ = model.to(device)
-
     # Hindcast in latent space
-    z_hindcast, time_idx = hindcast(model, dataloaders[datasplit], scaler_pca, device)
+    z_hindcast, time_idx = hindcast(model, dataloaders[datasplit], scaler_pca)
 
     # Extended PCA with 300 components
     n_components_full = 300
@@ -143,39 +140,70 @@ def argument_parser():
     return params
 
 
-if __name__ == "__main__":
-    # Specify parameters
-    params = argument_parser()
-    with open(params["model_path"] + "/config.json", "r") as f:
-        config = json.load(f)
-
-    # Load data
-    lim_hindcast = {
-        "train": xr.open_dataset(config["lim_path"] + "_train.nc")["z"].sel(lag=slice(1, None)),
-        "val": xr.open_dataset(config["lim_path"] + "_val.nc")["z"].sel(lag=slice(1, None)),
-        "test": xr.open_dataset(config["lim_path"] + "_test.nc")["z"].sel(lag=slice(1, None)),
+# if __name__ == "__main__":
+# %%
+# Specify parameters
+debug = False
+if debug:
+    params = {
+        "model_path": PATH
+        + "/../../models/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64",
+        "datasplit": "val",
+        "lags": [1, 3, 6, 9, 12, 15, 18, 21, 24],
     }
+else:
+    params = argument_parser()
 
-    # Create dataset
-    ds, datasets, dataloaders, combined_eofa, normalizer_pca = dataloader.load_pcdata_lim_ensemble(
-        lim_hindcast, **config
-    )
 
-    # Define and load model
-    num_condition = 12 if config["film"] else -1
-    model = lstm.ResidualLSTM(
-        input_dim=combined_eofa.n_components,
-        hidden_dim=config["hidden_dim"],
-        num_conditions=num_condition,
-        num_layers=config["layers"],
-        T_max=config["chrono"],
-    )
+with open(params["model_path"] + "/config.json", "r") as f:
+    config = json.load(f)
+# %%
+# Replace paths
+config["path"] = PATH + "/../../models/limlstm/"
+config["postfix"] = ""
+config["evaluate"] = True
+config["datapaths"] = {
+    "ssta": PATH
+    + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc",
+    "ssha": PATH
+    + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
+}
+config["lsm_path"] = PATH + "/../../data/land_sea_mask_common.nc"
+config["lim_path"] = PATH + "/../../models/lim/cslim_ssta-ssha/cslim_hindcast_ssta-ssha_eof20"
 
-    # Load model with best loss
-    checkpoint = torch.load(params["model_path"] + "/min_checkpoint.pt")
+# %%
 
-    lag_arr = [int(lag) for lag in params["lags"]]
-    scorepath = params["model_path"] + "/metrics"
-    perform_hindcast_evaluation(
-        model, checkpoint, ds, dataloaders, params["datasplit"], normalizer_pca, combined_eofa, lag_arr, scorepath
-    )
+# Load data
+lim_hindcast = {
+    "train": xr.open_dataset(config["lim_path"] + "_train.nc")["z"].sel(lag=slice(1, None)),
+    "val": xr.open_dataset(config["lim_path"] + "_val.nc")["z"].sel(lag=slice(1, None)),
+    "test": xr.open_dataset(config["lim_path"] + "_test.nc")["z"].sel(lag=slice(1, None)),
+}
+
+# Create dataset
+ds, datasets, dataloaders, combined_eofa, normalizer_pca = dataloader.load_pcdata_lim_ensemble(lim_hindcast, **config)
+
+# %%
+# Define and load model
+num_condition = 12 if config["film"] else -1
+model = lstm.ResidualLSTM(
+    input_dim=combined_eofa.n_components,
+    hidden_dim=config["hidden_dim"],
+    num_conditions=num_condition,
+    num_layers=config["layers"],
+    T_max=config["chrono"],
+)
+
+# Load model with best loss
+checkpoint = torch.load(params["model_path"] + "/min_checkpoint.pt")
+model.load_state_dict(checkpoint["model_state_dict"])
+model.to(DEVICE)
+
+# %%
+lag_arr = [int(lag) for lag in params["lags"]]
+scorepath = params["model_path"] + "/metrics"
+perform_hindcast_evaluation(
+    model, ds, dataloaders, params["datasplit"], normalizer_pca, combined_eofa, lag_arr, scorepath
+)
+
+# %%
