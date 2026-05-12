@@ -1,10 +1,11 @@
 # Custom
-slurm/
 data/*
 plots/*
 models/*
+slurm
 ecsbatch.*
 slurm-*.out
+experiments.yaml
 
 # Lightning logs
 lightning_logs

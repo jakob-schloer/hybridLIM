@@ -169,7 +169,7 @@ config["datapaths"] = {
     + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
 }
 config["lsm_path"] = PATH + "/../../data/land_sea_mask_common.nc"
-config["lim_path"] = PATH + "/../../models/lim/cslim_ssta-ssha/cslim_hindcast_ssta-ssha_eof20"
+config["lim_path"] = PATH + "/../../models/lim/cslim_ssta-ssha/cslim_hindcast_ssta-ssha_eof20-10"
 
 # %%
 
@@ -195,7 +195,7 @@ model = lstm.ResidualLSTM(
 )
 
 # Load model with best loss
-checkpoint = torch.load(params["model_path"] + "/min_checkpoint.pt")
+checkpoint = torch.load(params["model_path"] + "/final_checkpoint.pt")
 model.load_state_dict(checkpoint["model_state_dict"])
 model.to(DEVICE)
 

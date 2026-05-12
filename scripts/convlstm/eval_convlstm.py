@@ -10,6 +10,8 @@ import glob
 import json
 # %%
 import os
+import shutil
+import tempfile
 
 import numpy as np
 import torch
@@ -47,7 +49,10 @@ def hindcast_evaluation(loader, model, device, history=4, horizon=24):
     normalizer = {var: preproc.normalizer_from_dict(ds[var].attrs) for var in ds.data_vars}
     num_members = model.model.num_tails if hasattr(model, "model") else model.num_tails
 
-    forecasts, targets = [], []
+    # Run inference: save per-batch mean/std to disk (not individual members)
+    tmpdir = tempfile.mkdtemp()
+    nino_frcst_batches, nino_target_batches = [], []
+
     with torch.no_grad():
         for i, (sample, aux) in tqdm(enumerate(loader)):
             n_batch, n_vars, n_time, n_lat, n_lon = sample.shape
@@ -68,32 +73,56 @@ def hindcast_evaluation(loader, model, device, history=4, horizon=24):
                 "lon": ds.lon,
             }
             xr_pred = metric.torch_to_xarray(x_pred.permute(2, 0, 1, 3, 4, 5), list(ds.data_vars), dims, **coords)
-            # Unnormalize
             xr_pred = xr.merge([normalizer[var].inverse_transform(xr_pred[var]) for var in xr_pred.data_vars])
 
             dims = ["time", "lag", "lat", "lon"]
             coords = {"time": dates_batch, "lag": np.arange(1, horizon + 1), "lat": ds.lat, "lon": ds.lon}
             xr_target = metric.torch_to_xarray(x_target.permute(1, 0, 2, 3, 4), list(ds.data_vars), dims, **coords)
-            # Unnormalize
             xr_target = xr.merge([normalizer[var].inverse_transform(xr_target[var]) for var in xr_target.data_vars])
-            forecasts.append(xr_pred)
-            targets.append(xr_target)
 
-    forecasts = xr.concat(forecasts, dim="time")
-    targets = xr.concat(targets, dim="time")
+            # NINO indices need individual members — keep in memory (small: spatial averages)
+            nino_frcst_batches.append(enso.get_nino_indices(xr_pred["ssta"]))
+            nino_target_batches.append(enso.get_nino_indices(xr_target["ssta"]))
 
-    # Metrics
+            # Save only mean and std to disk (drops member dim → ~16x smaller)
+            xr_pred.mean(dim="member").to_netcdf(os.path.join(tmpdir, f"pred_mean_{i:04d}.nc"))
+            xr_pred.std(dim="member", ddof=1).to_netcdf(os.path.join(tmpdir, f"pred_std_{i:04d}.nc"))
+            xr_target.to_netcdf(os.path.join(tmpdir, f"target_{i:04d}.nc"))
+
+            del x_pred, x_input, x_target, xr_pred, xr_target
+
     nino_indices = {
-        "frcst": enso.get_nino_indices(forecasts["ssta"]),
-        "target": enso.get_nino_indices(targets["ssta"]),
+        "frcst": xr.concat(nino_frcst_batches, dim="time"),
+        "target": xr.concat(nino_target_batches, dim="time"),
     }
+    del nino_frcst_batches, nino_target_batches
 
-    verification_per_gridpoint = metric.verification_metrics_per_gridpoint(
-        targets, forecasts.mean(dim="member"), forecasts.std(dim="member"), forecasts.dims["member"]
-    )
-    verification_per_time = metric.verification_metrics_per_time(
-        targets, forecasts.mean(dim="member"), forecasts.std(dim="member"), forecasts.dims["member"]
-    )
+    # Compute grid/time metrics per lag from disk (only one lag in memory at a time)
+    mean_files = sorted(glob.glob(os.path.join(tmpdir, "pred_mean_*.nc")))
+    std_files = sorted(glob.glob(os.path.join(tmpdir, "pred_std_*.nc")))
+    target_files = sorted(glob.glob(os.path.join(tmpdir, "target_*.nc")))
+
+    verification_per_gridpoint, verification_per_time = [], []
+    for lag_val in range(1, horizon + 1, 3):
+        print(f"Computing metrics for lag {lag_val}...", flush=True)
+        frcst_mean = xr.concat([xr.open_dataset(f).sel(lag=lag_val) for f in mean_files], dim="time")
+        frcst_std = xr.concat([xr.open_dataset(f).sel(lag=lag_val) for f in std_files], dim="time")
+        target_lag = xr.concat([xr.open_dataset(f).sel(lag=lag_val) for f in target_files], dim="time")
+
+        grid_verif = metric.verification_metrics_per_gridpoint(target_lag, frcst_mean, frcst_std, num_members)
+        grid_verif["lag"] = lag_val
+        verification_per_gridpoint.append(grid_verif)
+
+        time_verif = metric.verification_metrics_per_time(target_lag, frcst_mean, frcst_std, num_members)
+        time_verif["lag"] = lag_val
+        verification_per_time.append(time_verif)
+
+        del frcst_mean, frcst_std, target_lag
+
+    shutil.rmtree(tmpdir)
+
+    verification_per_gridpoint = metric.listofdicts_to_dictofxr(verification_per_gridpoint, dim_key="lag")
+    verification_per_time = metric.listofdicts_to_dictofxr(verification_per_time, dim_key="lag")
 
     return verification_per_gridpoint, verification_per_time, nino_indices
 
@@ -114,7 +143,7 @@ if __name__ == "__main__":
     with open(params["model_path"] + "/config.json", "r") as f:
         config = json.load(f)
 
-    config["batch_size"] = 16
+    config["batch_size"] = 4
 
     # Load data
     ds, datasets, dataloaders = dataloader.load_stdata(**config)

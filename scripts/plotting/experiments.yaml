@@ -56,7 +56,9 @@ experiments:
 
   LIM+LSTM:
     paths:
-      - ${modelpath}/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
+      # - ${modelpath}/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
+      # - ${modelpath}/limlstm/30535378_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_repro
+      - /home/ecm1922/Projects/hybridLIM/models/limlstm/30979214_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
     color: darkred
     num_data: null
 
@@ -110,7 +112,8 @@ experiments:
 
   LSTM:
     paths:
-      - ${modelpath}/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
+      # - ${modelpath}/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
+      - ${modelpath}/lstm/30535376_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
     color: gold
     num_data: null
 
@@ -164,7 +167,8 @@ experiments:
 
   ConvLSTM:
     paths:
-      - ${modelpath}/convlstm/30458451_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32
+      # - ${modelpath}/convlstm/30458451_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32
+      - ${modelpath}/convlstm/30535380_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_repro
     color: darkorange
     num_data: null
 

@@ -103,6 +103,7 @@ def make_args(ipython=False):
             "-postfix", "--postfix", default="", type=str, help="Postfix to model folder, e.g. '_id_1'."
         )
         parser.add_argument("-eval", "--evaluate", action="store_true", help="Evaluate model.")
+        parser.add_argument("-seed", "--seed", default=None, type=int, help="Set seed.")
 
         config = vars(parser.parse_args())
 
@@ -128,6 +129,13 @@ def make_args(ipython=False):
 
 # Data config
 config = make_args(ipython=False)
+
+# Set seed
+if config.get("seed") is not None:
+    from hyblim.utils.seed import seed_everything
+
+    seed_everything(config["seed"])
+    print(f"Seed set to {config['seed']}", flush=True)
 
 # %%
 # Load data

@@ -49,7 +49,7 @@ def make_args(ipython=False):
             hidden_dim=32,
             film=True,
             # Training
-            train_horiz=16,
+            train_horiz=20,
             loss_type="crps",
             gamma=0.65,  # 0.9,
             epochs=3,
@@ -103,6 +103,7 @@ def make_args(ipython=False):
             "-postfix", "--postfix", default="", type=str, help="Postfix to model folder, e.g. '_id_1'."
         )
         parser.add_argument("-eval", "--evaluate", action="store_true", help="Evaluate model.")
+        parser.add_argument("-seed", "--seed", default=None, type=int, help="Set seed.")
         config = vars(parser.parse_args())
 
     path_to_data = {
@@ -139,6 +140,13 @@ def make_args(ipython=False):
 
 # Get configs
 config = make_args(ipython=False)
+
+# Set seed
+if config.get("seed") is not None:
+    from hyblim.utils.seed import seed_everything
+
+    seed_everything(config["seed"])
+    print(f"Seed set to {config['seed']}", flush=True)
 
 # %%
 # Create training and validation dataset
