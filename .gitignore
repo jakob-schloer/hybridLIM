@@ -6,6 +6,8 @@ slurm
 ecsbatch.*
 slurm-*.out
 experiments.yaml
+.claude/*
+CLAUDE.md
 
 # Lightning logs
 lightning_logs

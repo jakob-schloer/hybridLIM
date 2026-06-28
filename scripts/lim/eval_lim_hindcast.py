@@ -110,6 +110,14 @@ def argument_parser():
         "-lags", "--lags", nargs="+", default=[1, 3, 6, 9, 12, 15, 18, 21, 24], help="Lags to compute metrics for."
     )
     parser.add_argument("-datasplit", "--datasplit", type=str, default="test", help="Datasplit to compute metrics for.")
+    parser.add_argument(
+        "-eof_path",
+        "--eof_path",
+        type=str,
+        default=None,
+        help="Path to precomputed EOFs. If None, the canonical file (full training period) is used, "
+        "falling back to fitting on the training period if it does not exist.",
+    )
     params = vars(parser.parse_args())
     return params
 
@@ -131,6 +139,11 @@ if __name__ == "__main__":
     )
     n_eof = [20, 10]
 
+    # Default to the canonical precomputed EOFs (fitted on the full training period).
+    eof_path = params["eof_path"]
+    if eof_path is None:
+        eof_path = PATH + "/../../data/cesm2-picontrol/pca/" + eof.eof_filename(list(datapaths.keys()), n_eof)
+
     # Load data
     print("Load data!", flush=True)
     da_arr = []
@@ -149,15 +162,8 @@ if __name__ == "__main__":
     lsm = xr.open_dataset(PATH + "/../../data/land_sea_mask_common.nc")["lsm"]
     ds = ds.where(lsm != 1, other=np.nan)
 
-    # Create PCA
-    eofa_lst = []
-    for i, var in enumerate(ds.data_vars):
-        print(f"Create EOF of {var}!")
-        n_components = n_eof[i] if isinstance(n_eof, list) else n_eof
-        eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components)
-        eofa.fit(ds[var].isel(time=slice(None, int(0.8 * len(ds["time"])))))
-        eofa_lst.append(eofa)
-    combined_eof = eof.CombinedEOF(eofa_lst, vars=list(ds.data_vars))
+    # Create PCA (load precomputed EOFs if available, else fit on the training period)
+    combined_eof = eof.get_combined_eof(ds, n_eof, eof_path=eof_path, train_period=(0, int(0.8 * len(ds["time"]))))
 
     # Perform hindcast evaluation
     lag_arr = [int(lag) for lag in params["lags"]]

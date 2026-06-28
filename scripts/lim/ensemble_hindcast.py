@@ -20,12 +20,19 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 # Parameters
 # ======================================================================================
 if False:
-    config = dict(num_traindata=None, vars=["ssta", "ssha"], lim_type="cslim")
+    config = dict(num_traindata=None, vars=["ssta", "ssha"], lim_type="cslim", eof_path=None)
 else:
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--vars", nargs="+", default=["ssta", "ssha"], help="Variable names used.")
     parser.add_argument("-ntrain", "--num_traindata", default=None, type=int, help="Number of training datapoints.")
     parser.add_argument("-lim", "--lim_type", default="cslim", type=str, help="Type of lim model.")
+    parser.add_argument(
+        "-eof_path",
+        "--eof_path",
+        default=None,
+        type=str,
+        help="Path to precomputed EOFs. If None, defaults to the canonical file.",
+    )
     config = vars(parser.parse_args())
 
 config["datapaths"] = {}
@@ -40,6 +47,11 @@ if "ssha" in config["vars"]:
         + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc"
     )
 config["n_eof"] = [20, 10]
+
+if config["eof_path"] is None and config["num_traindata"] is None:
+    config["eof_path"] = (
+        PATH + "/../../data/cesm2-picontrol/pca/" + eof.eof_filename(list(config["datapaths"].keys()), config["n_eof"])
+    )
 
 
 if config["num_traindata"] is not None:
@@ -79,20 +91,7 @@ ds = ds.where(lsm != 1, other=np.nan)
 # %%
 # Create PCA
 # ======================================================================================
-reload(eof)
-eofa_lst = []
-for i, var in enumerate(ds.data_vars):
-    print(f"Create EOF of {var}!")
-    n_components = config["n_eof"][i] if isinstance(config["n_eof"], list) else config["n_eof"]
-    eofa = eof.EmpiricalOrthogonalFunctionAnalysis(n_components)
-    eofa.fit(ds[var])
-    eofa_lst.append(eofa)
-combined_eof = eof.CombinedEOF(eofa_lst, vars=list(ds.data_vars))
-
-
-# %%
-# Split in training and test data
-# ======================================================================================
+# Training, validation, test split
 if config["num_traindata"] is None:
     train_period = (0, int(0.8 * len(ds["time"])))
 else:
@@ -101,6 +100,12 @@ else:
 val_period = (int(0.8 * len(ds["time"])), int(0.9 * len(ds["time"])))
 test_period = (int(0.9 * len(ds["time"])), len(ds["time"]))
 
+# Create PCA (load precomputed EOFs if available, else fit on the training period)
+combined_eof = eof.get_combined_eof(ds, config["n_eof"], eof_path=config["eof_path"], train_period=train_period)
+
+# %%
+# Transform to PC space
+# ======================================================================================
 data = dict(
     train=combined_eof.transform(ds.isel(time=slice(*train_period))),
     val=combined_eof.transform(ds.isel(time=slice(*val_period))),

@@ -19,6 +19,7 @@ from torch import nn
 import wandb
 from hyblim import losses
 from hyblim.data import dataloader
+from hyblim.data import eof
 from hyblim.model import lstm
 
 PATH = os.path.dirname(os.path.abspath(__file__))
@@ -119,6 +120,13 @@ def make_args(ipython=False):
 
     config["lsm_path"] = PATH + "/../../data/land_sea_mask_common.nc"
     config["n_eof"] = [20, 10]
+    # Use canonical precomputed EOFs (full training period) for standard runs; for
+    # num_traindata experiments keep eof_path=None to fit on the training subsample.
+    config["eof_path"] = (
+        None
+        if config["num_traindata"] is not None
+        else PATH + "/../../data/cesm2-picontrol/pca/" + eof.eof_filename(config["vars"], config["n_eof"])
+    )
     config["horiz"] = 24
     config["name"] = "FilmLSTM"
     config["chrono"] = 5
