@@ -8,11 +8,12 @@
 import numpy as np
 from utils import base_parser
 from utils import display_label
-from utils import gpl
 from utils import load_experiments
 from utils import load_nino_scores
 from utils import plt
 from utils import save_figure
+
+import hyblim.geoplot as gpl
 
 MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
 

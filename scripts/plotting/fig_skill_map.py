@@ -17,10 +17,11 @@ import numpy as np
 import xarray as xr
 from utils import base_parser
 from utils import display_label
-from utils import gpl
 from utils import load_experiments
 from utils import plt
 from utils import save_figure
+
+import hyblim.geoplot as gpl
 
 # Plot parameters per score: absolute skill (left col) and difference (right col).
 ABS_PARAMS = {

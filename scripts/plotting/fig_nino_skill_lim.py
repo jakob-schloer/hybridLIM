@@ -8,12 +8,13 @@ both relative to monthly climatology.
 
 import numpy as np
 from utils import base_parser
-from utils import gpl
 from utils import load_experiments
 from utils import load_nino_scores
 from utils import model_color
 from utils import plt
 from utils import save_figure
+
+import hyblim.geoplot as gpl
 
 # Registry key -> manuscript legend label (keys without an entry use the key).
 LABELS = {
@@ -70,9 +71,10 @@ def main():
         if i == 0:
             ax.legend(fontsize="small")
 
-    axs[-1].set_ylim(-0.1, 0.95)
+    for ax in axs:
+        ax.set_ylim(-0.1, 0.95)
     axs[-1].set_xticks(score["lag"][::2])
-    gpl.enumerate_axes(axs, pos_x=0.01, pos_y=1.05, fontsize="medium")
+    gpl.enumerate_axes(axs, pos_x=-0.05, pos_y=1.1, fontsize="medium")
 
     save_figure(fig, "fig2_nino_skill_lim.pdf", args.output)
 

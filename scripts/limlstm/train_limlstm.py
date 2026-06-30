@@ -22,6 +22,7 @@ from hyblim import losses
 from hyblim.data import dataloader
 from hyblim.data import eof
 from hyblim.model import lstm
+from hyblim.utils import eval as heval
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 os.environ["WANDB__SERVICE_WAIT"] = "300"
@@ -53,6 +54,8 @@ def make_args(ipython=False):
             train_horiz=20,
             loss_type="crps",
             gamma=0.65,  # 0.9,
+            ssha_weight=1.0,
+            valmetric_every=1,
             epochs=3,
             init_lr=1e-4,
             min_lr=1e-6,
@@ -91,6 +94,9 @@ def make_args(ipython=False):
             help="Name of loss used for training, i.e. 'weighted_mse', 'mse' ",
         )
         parser.add_argument("-gamma", "--gamma", default=0.65, type=float, help="Weighting of loss, gamma^tau.")
+        parser.add_argument(
+            "-wssha", "--ssha_weight", default=1.0, type=float, help="Loss weight for SSHA relative to SSTA (=1.0)."
+        )
         parser.add_argument("-epochs", "--epochs", default=30, type=int, help="Number of epochs.")
         parser.add_argument("-ilr", "--init_lr", default=1e-4, type=float, help="Initial learning rate.")
         parser.add_argument(
@@ -98,6 +104,9 @@ def make_args(ipython=False):
         )
         parser.add_argument("-wandb", "--wandb_project", default="LIM+LSTM", type=str, help="Wandb project name.")
         parser.add_argument("-dry", "--dry", action="store_true", help="If set, dry run.")
+        parser.add_argument(
+            "-valevery", "--valmetric_every", default=1, type=int, help="Compute Niño/field metrics every N epochs."
+        )
         # Save model
         parser.add_argument("-path", "--path", default=PATH + "/../../output/limlstm/", type=str, help="Modelpath.")
         parser.add_argument(
@@ -206,6 +215,11 @@ else:
 
 gamma_scheduler = losses.GammaWeighting(config["gamma"], config["gamma"], 1)
 
+# Per-feature loss weights (SSHA scaled relative to SSTA); all-ones reproduces a plain mean.
+feat_weights = losses.variable_loss_weights(list(ds.data_vars), config["n_eof"], {"ssha": config["ssha_weight"]}).to(
+    device
+)
+
 # Model name
 model_type = "LIM-LSTM"
 lrschedule = (
@@ -220,6 +234,7 @@ model_name = (
     + f"_nhoriz_{config['train_horiz']}"
     + f"_layers_{config['layers']}_latent{config['hidden_dim']}"
     + f"_{lrschedule}_bs{config['batch_size']}"
+    + (f"_wssha{config['ssha_weight']}" if config["ssha_weight"] != 1.0 else "")
     + f"{config['postfix']}"
 )
 print(model_name, flush=True)
@@ -252,12 +267,20 @@ num_epochs = config["epochs"]
 train_loss, val_loss, val_mse = [], [], []
 val_loss_min = 1e5
 
+# Per-lead validation metrics (Niño4 + field-mean indices), computed every N epochs.
+val_lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
+val_times = val_dataloader.dataset.data["time"].data
+val_monitor = heval.LatentIndexMonitor(combined_eofa, normalizer_pca, ds, val_times, val_lag_arr, members)
+valmetric_every = config["valmetric_every"]
+
 print(f"Training on {device}!", flush=True)
 for current_epoch in range(num_epochs):
     tstart = time.time()
 
     # 1. Validation
     model.eval()
+    do_val_metrics = (current_epoch % valmetric_every == 0) or (current_epoch == num_epochs - 1)
+    val_frcst, val_time_idx = [], []
     with torch.no_grad():
         vl, mse = 0, 0
         for lim_input, target, l in val_dataloader:
@@ -267,18 +290,29 @@ for current_epoch in range(num_epochs):
             x_hat = model(x_input, context)
             # Loss
             raw_loss = loss_fn(x_target, x_hat)
-            raw_loss = raw_loss.mean(dim=[0, 2])
+            raw_loss = (raw_loss * feat_weights).sum(dim=2).div(feat_weights.sum()).mean(dim=0)
             gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
             gamma /= gamma.sum()
             loss = (raw_loss * gamma).sum()
             vl += loss.item()
             x_mu = x_hat.mean(dim=1)
             mse += (x_mu - x_target).pow(2).mean().item()
+            # Collect corrected forecast (normalized PCs) and valid-time indices for index metrics
+            if do_val_metrics:
+                val_frcst.append(x_hat.cpu())
+                val_time_idx.append(l["idx"])
 
         vl /= len(val_dataloader)
         mse /= len(val_dataloader)
         val_loss.append(vl)
         val_mse.append(mse)
+
+        # Per-lead Niño4 + field-mean metrics over the full validation set (fast operator)
+        val_index_log = {}
+        if do_val_metrics:
+            z_frcst = torch.cat(val_frcst, dim=0)
+            time_idx = torch.cat(val_time_idx, dim=0).to(torch.long).numpy()
+            val_index_log = val_monitor.compute(z_frcst, time_idx, prefix="val")
 
     # 2. Training
     model.train()
@@ -299,7 +333,7 @@ for current_epoch in range(num_epochs):
         x_hat = model(x_input, context)
         # Loss
         raw_loss = loss_fn(x_target, x_hat)
-        raw_loss = raw_loss.mean(dim=[0, 2])
+        raw_loss = (raw_loss * feat_weights).sum(dim=2).div(feat_weights.sum()).mean(dim=0)
         gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
         gamma /= gamma.sum()
         loss = (raw_loss * gamma).sum()
@@ -332,7 +366,7 @@ for current_epoch in range(num_epochs):
 
     # 5. Log it with wandb
     if not config["dry"]:
-        wandb.log({"train_loss": tl, "val_loss": vl, "val_mse": mse, "lr": scheduler.get_last_lr()[0]})
+        wandb.log({"train_loss": tl, "val_loss": vl, "val_mse": mse, "lr": scheduler.get_last_lr()[0], **val_index_log})
 
     # 6. Save checkpoint
     if model_path is not None:
@@ -340,6 +374,17 @@ for current_epoch in range(num_epochs):
             print("Save checkpoint for lowest val. loss!", flush=True)
             torch.save(checkpoint, model_path + "/min_checkpoint.pt")
             val_loss_min = vl
+            if val_index_log:
+                val_objective = {
+                    "epoch": current_epoch,
+                    "val_loss": vl,
+                    "nino4_acc_mean": val_index_log["val/nino4/acc/mean"],
+                    "nino4_acc_per_lag": {
+                        int(lag): val_index_log[f"val/nino4/acc/lag{int(lag)}"] for lag in val_lag_arr
+                    },
+                }
+                with open(model_path + "/val_objective.json", "w") as f:
+                    json.dump(val_objective, f, indent=2)
 
 # Save model at the end
 print("Finished training!", flush=True)

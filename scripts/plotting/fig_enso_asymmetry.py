@@ -19,14 +19,14 @@ import cartopy as ctp
 import numpy as np
 import xarray as xr
 from utils import base_parser
-from utils import enso
-from utils import gpl
 from utils import load_experiments
 from utils import load_raw_data_and_eof
 from utils import plt
 from utils import preproc
 from utils import save_figure
 
+import hyblim.geoplot as gpl
+from hyblim.utils import enso
 from hyblim.utils import stats
 
 # Model -> hindcast filename (PC-space forecasts, keyed by initialization time).

@@ -10,13 +10,14 @@ All skill scores are relative to monthly climatology.
 from utils import NUM_DATA
 from utils import base_parser
 from utils import display_label
-from utils import gpl
 from utils import load_experiments
 from utils import load_nino_scores
 from utils import load_nino_scores_ndata
 from utils import model_color
 from utils import plt
 from utils import save_figure
+
+import hyblim.geoplot as gpl
 
 SCORE_LABELS = {"rmsess": "RMSESS", "crpss": "CRPSS"}
 

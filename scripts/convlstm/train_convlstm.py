@@ -14,6 +14,7 @@ from lightning.pytorch.loggers import WandbLogger
 from hyblim import losses
 from hyblim.data import dataloader
 from hyblim.model import convlstm
+from hyblim.utils import eval as heval
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 os.environ["WANDB__SERVICE_WAIT"] = "300"
@@ -45,9 +46,11 @@ def make_args(ipython=False):
             train_horiz=16,  # TODO: Only for testing
             loss_type="crps",
             gamma=0.65,
+            ssha_weight=1.0,
             init_lr=5e-3,
             min_lr=1e-6,
             wandb_project="SwinLSTM",
+            valmetric_every=1,
             # Saving
             postfix="_test",
             path=PATH + "/../../models/convlstm/",
@@ -72,6 +75,9 @@ def make_args(ipython=False):
         parser.add_argument(
             "-gamma", "--gamma", default=0.65, type=float, help="Weighting of loss, gamma^tau. Defaults to 1."
         )
+        parser.add_argument(
+            "-wssha", "--ssha_weight", default=1.0, type=float, help="Loss weight for SSHA relative to SSTA (=1.0)."
+        )
         parser.add_argument("-epochs", "--epochs", default=30, type=int, help="Number of epochs.")
         parser.add_argument("-ilr", "--init_lr", default=1e-3, type=float, help="Initial learning rate.")
         parser.add_argument(
@@ -79,6 +85,9 @@ def make_args(ipython=False):
         )
         parser.add_argument("-wandb", "--wandb_project", default="ContextCast", type=str, help="Wandb project name.")
         parser.add_argument("-dry", "--dry", action="store_true", help="If set, dry run.")
+        parser.add_argument(
+            "-valevery", "--valmetric_every", default=1, type=int, help="Compute Niño/field metrics every N epochs."
+        )
         # Save model
         parser.add_argument("-path", "--path", default=PATH + "/../../output/contextCast/", type=str, help="Modelpath.")
         parser.add_argument(
@@ -107,10 +116,10 @@ def make_args(ipython=False):
 
 
 class ConvLSTMTrainer(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, eval_ds=None):
         super(ConvLSTMTrainer, self).__init__()
-        # Save configuration for later access
-        self.save_hyperparameters()
+        # Save configuration for later access (eval_ds holds xarray data, do not pickle it)
+        self.save_hyperparameters(ignore=["eval_ds"])
         self.config = config
 
         # Define the model
@@ -147,14 +156,32 @@ class ConvLSTMTrainer(pl.LightningModule):
 
         # Decaying weight for loss over lead time
         self.gamma_scheduler = losses.GammaWeighting(self.config["gamma"], self.config["gamma"], 1)
+        # Per-channel loss weights (SSHA scaled relative to SSTA); all-ones reproduces a plain mean.
+        # Kept as a plain attribute (not a buffer) so it stays out of the checkpoint state_dict.
+        self.var_weights = losses.variable_loss_weights(
+            config["vars"], [1] * len(config["vars"]), {"ssha": config["ssha_weight"]}
+        )
         # Get lsm for loss masking
         land_area_mask = xr.open_dataset(config["lsm_path"])["lsm"]
         self.lsm = torch.logical_not(torch.from_numpy(land_area_mask.where(land_area_mask == 0, 1).data)).to(
             self.device
         )
 
+        # Fast per-lead Niño4 + field-mean validation metrics (masked box means in torch).
+        self.val_lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
+        self._val_frcst_idx, self._val_target_idx = [], []
+        self._do_val_metrics = False
+        self.grid_monitor = (
+            heval.GridIndexMonitor(eval_ds, self.val_lag_arr, config["members"]) if eval_ds is not None else None
+        )
+
     def forward(self, x, context):
         return self.model(x, context=context)
+
+    def _gather(self, t: torch.Tensor) -> torch.Tensor:
+        """All-gather a tensor across DDP ranks and merge the gathered ranks into dim 0."""
+        g = self.all_gather(t)  # (world, *t.shape)
+        return g.reshape(-1, *t.shape[1:])
 
     def _step(self, batch, batch_idx, history, horizon):
         sample, aux = batch
@@ -167,7 +194,10 @@ class ConvLSTMTrainer(pl.LightningModule):
 
         x_pred = self.model(x, context=context)
         raw_loss = self.loss_fn(y, x_pred)[:, :, :, self.lsm]
-        raw_loss = raw_loss.mean(dim=[0, 1, 3])
+        # Weighted mean over the variable/channel axis (dim=1); plain mean over batch and ocean points.
+        w = self.var_weights.to(self.device)
+        raw_loss = raw_loss.mean(dim=[0, 3])
+        raw_loss = (raw_loss * w[:, None]).sum(dim=0).div(w.sum())
         gamma = self.gamma_scheduler(raw_loss.shape[0], self.current_epoch).to(self.device).float()
         gamma /= gamma.sum()
         loss = (raw_loss * gamma).sum()
@@ -175,22 +205,46 @@ class ConvLSTMTrainer(pl.LightningModule):
         x_mu = x_pred.mean(dim=1)
         mse = (x_mu - y).pow(2)[:, :, :, self.lsm].mean()
 
-        return x_pred, loss, mse
+        return x_pred, y, loss, mse
 
     def training_step(self, batch, batch_idx):
         hist = torch.randint(1, self.config["hist"], (1,)).item()
-        x_pred, loss, _ = self._step(batch, batch_idx, hist, self.config["train_horiz"])
+        x_pred, _, loss, _ = self._step(batch, batch_idx, hist, self.config["train_horiz"])
         self.log("train_loss", loss, on_step=True, on_epoch=True, logger=True)
 
         return loss
 
+    def on_validation_epoch_start(self):
+        self._val_frcst_idx, self._val_target_idx = [], []
+        every = self.config["valmetric_every"]
+        self._do_val_metrics = self.grid_monitor is not None and (
+            (self.current_epoch % every == 0) or (self.current_epoch == self.config["epochs"] - 1)
+        )
+
     def validation_step(self, batch, batch_idx):
         hist = 4  # TODO: This should not be hardcoded
-        x_pred, loss, mse = self._step(batch, batch_idx, hist, self.config["horiz"])
+        x_pred, y, loss, mse = self._step(batch, batch_idx, hist, self.config["horiz"])
 
         self.log("val_loss", loss, on_step=True, on_epoch=True, logger=True)
         self.log("val_mse", mse, on_step=True, on_epoch=True, logger=True)
+
+        # Reduce to per-lead indices (masked box means) and accumulate (skip sanity check).
+        if self._do_val_metrics and not self.trainer.sanity_checking:
+            self._val_frcst_idx.append(self.grid_monitor.reduce(x_pred, has_member=True))
+            self._val_target_idx.append(self.grid_monitor.reduce(y, has_member=False))
         return loss
+
+    def on_validation_epoch_end(self):
+        if not self._val_frcst_idx:
+            return
+        frcst = torch.cat(self._val_frcst_idx, dim=0)  # (n, member, lag, n_index)
+        target = torch.cat(self._val_target_idx, dim=0)  # (n, lag, n_index)
+        # Combine shards across DDP ranks so ACC/CRPS use the whole validation set.
+        if torch.distributed.is_initialized():
+            frcst, target = self._gather(frcst), self._gather(target)
+        logdict = self.grid_monitor.metrics_logdict(frcst, target, prefix="val")
+        self.log_dict(logdict, rank_zero_only=True, sync_dist=False)
+        self._val_frcst_idx, self._val_target_idx = [], []
 
     def configure_optimizers(self):
         # Scale learning rate with batch size and number of GPUs
@@ -233,7 +287,7 @@ config["input_dim"] = len(list(ds.data_vars))
 
 # %%
 # Instantiate the Lightning Module
-model = ConvLSTMTrainer(config=config)
+model = ConvLSTMTrainer(config=config, eval_ds=ds)
 
 # Model name
 lrschedule = (
@@ -248,6 +302,7 @@ model_name = (
     + f"_nhist_{config['hist']}_nhoriz_{config['train_horiz']}"
     + f"_layers_{config['num_layers']}_ch{config['num_channels']}"
     + f"_{lrschedule}_bs{config['batch_size']}"
+    + (f"_wssha{config['ssha_weight']}" if config["ssha_weight"] != 1.0 else "")
     + f"{config['postfix']}"
 )
 model_path = config["path"] + f"/{config['slurm_id']}_" + model_name

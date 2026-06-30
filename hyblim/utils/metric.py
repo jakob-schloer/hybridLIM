@@ -185,6 +185,46 @@ def verification_metrics_per_time(
     return verification_metrics
 
 
+def index_verification_metrics(frcst: xr.Dataset, target: xr.Dataset, n_members: int = 16) -> dict:
+    """Per-lead verification metrics for scalar index time series (e.g. Niño indices).
+
+    Used for cheap monitoring during training. Each variable in `frcst`/`target` is a
+    scalar index (no spatial dims). Metrics are reduced over the sample dimension `time`
+    and returned per lead time `lag`.
+
+    Args:
+        frcst (xr.Dataset): Ensemble forecast indices with dims ('time', 'member', 'lag').
+        target (xr.Dataset): Target indices with dims ('time', 'lag').
+        n_members (int, optional): Ensemble size. Defaults to 16.
+
+    Returns:
+        dict[str, xr.Dataset]: Keys 'acc', 'rmse', 'crps', 'spread', 'ssr', each a Dataset
+            over 'lag' with the same variables as `frcst`/`target`.
+    """
+    frcst_mean = frcst.mean(dim="member")
+    frcst_std = frcst.std(dim="member", ddof=1)
+
+    # Deterministic scores of the ensemble mean
+    mse = ((frcst_mean - target) ** 2).mean(dim="time", skipna=True)
+    rmse = np.sqrt(mse)
+    acc = xr.merge([xr.corr(frcst_mean[var], target[var], dim="time") for var in target.data_vars])
+
+    # Empirical CRPS (same energy form as the EmpiricalCRPS training loss), averaged over time
+    crps_vars = {}
+    for var in target.data_vars:
+        pred = frcst[var].transpose("member", "time", "lag").values  # (member, time, lag)
+        tgt = target[var].transpose("time", "lag").values  # (time, lag)
+        crps_tl = crps_empirical(tgt, pred)  # (time, lag)
+        crps_vars[var] = xr.DataArray(np.nanmean(crps_tl, axis=0), coords={"lag": target["lag"]}, dims="lag")
+    crps = xr.Dataset(crps_vars)
+
+    # Ensemble spread and spread-to-skill ratio
+    spread = np.sqrt((frcst_std**2).mean(dim="time", skipna=True))
+    ssr = np.sqrt((n_members + 1) / n_members) * spread / rmse
+
+    return {"acc": acc, "rmse": rmse, "crps": crps, "spread": spread, "ssr": ssr}
+
+
 def time_series_score(frcst: xr.Dataset, target: xr.Dataset) -> xr.Dataset:
     """Compute time series scores.
 

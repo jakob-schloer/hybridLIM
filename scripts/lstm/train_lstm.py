@@ -21,6 +21,7 @@ from hyblim import losses
 from hyblim.data import dataloader
 from hyblim.data import eof
 from hyblim.model import lstm
+from hyblim.utils import eval as heval
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 os.environ["WANDB__SERVICE_WAIT"] = "300"
@@ -54,11 +55,13 @@ def make_args(ipython=False):
             # Training
             loss_type="crps",
             gamma=0.65,
+            ssha_weight=1.0,
             epochs=2,
             init_lr=5e-3,
             min_lr=3e-7,
             dry=True,
             sweep=False,
+            valmetric_every=1,
             wandb_project="FiLMLSTM",
             # Saving
             postfix="_test",
@@ -91,6 +94,9 @@ def make_args(ipython=False):
             help="Name of loss used for training, i.e. 'weighted_mse', 'mse' ",
         )
         parser.add_argument("-gamma", "--gamma", default=0.65, type=float, help="Weighting of loss, gamma^tau.")
+        parser.add_argument(
+            "-wssha", "--ssha_weight", default=1.0, type=float, help="Loss weight for SSHA relative to SSTA (=1.0)."
+        )
         parser.add_argument("-epochs", "--epochs", default=30, type=int, help="Number of epochs.")
         parser.add_argument("-ilr", "--init_lr", default=5e-3, type=float, help="Initial learning rate.")
         parser.add_argument(
@@ -98,6 +104,9 @@ def make_args(ipython=False):
         )
         parser.add_argument("-wandb", "--wandb_project", default="FilMLSTM", type=str, help="Wandb project name.")
         parser.add_argument("-dry", "--dry", action="store_true", help="If set, dry run.")
+        parser.add_argument(
+            "-valevery", "--valmetric_every", default=1, type=int, help="Compute Niño/field metrics every N epochs."
+        )
         # Save model
         parser.add_argument("-path", "--path", default=PATH + "/../../models/lstm", type=str, help="Modelpath.")
         parser.add_argument(
@@ -190,6 +199,11 @@ else:
 
 gamma_scheduler = losses.GammaWeighting(config["gamma"], config["gamma"], 1)
 
+# Per-feature loss weights (SSHA scaled relative to SSTA); all-ones reproduces a plain mean.
+feat_weights = losses.variable_loss_weights(list(ds.data_vars), config["n_eof"], {"ssha": config["ssha_weight"]}).to(
+    device
+)
+
 
 # Model name
 model_type = "CSLSTM" if config["film"] else "LSTM"
@@ -205,6 +219,7 @@ model_name = (
     + f"_nhist_{config['hist']}_nhoriz_{config['train_horiz']}"
     + f"_layers_{config['layers']}_latent{config['hidden_dim']}"
     + f"_{lrschedule}_bs{config['batch_size']}"
+    + (f"_wssha{config['ssha_weight']}" if config["ssha_weight"] != 1.0 else "")
     + f"{config['postfix']}"
 )
 print(model_name, flush=True)
@@ -237,12 +252,20 @@ train_dataloader, val_dataloader = dataloaders["train"], dataloaders["val"]
 train_loss, val_loss, val_mse = [], [], []
 val_loss_min = 5e5
 
+# Per-lead validation metrics (Niño4 + field-mean indices), computed every N epochs.
+val_lag_arr = [1, 3, 6, 9, 12, 15, 18, 21, 24]
+val_times = val_dataloader.dataset.data["time"].data
+val_monitor = heval.LatentIndexMonitor(combined_eof, scaler_pca, ds, val_times, val_lag_arr, config["members"])
+valmetric_every = config["valmetric_every"]
+
 print(f"Training on {device}!", flush=True)
 for current_epoch in range(num_epochs):
     tstart = time.time()
 
     # 1. Validation
     model.eval()
+    do_val_metrics = (current_epoch % valmetric_every == 0) or (current_epoch == num_epochs - 1)
+    val_frcst, val_time_idx = [], []
     with torch.no_grad():
         vl, mse = 0.0, 0.0
         for sample, aux in val_dataloader:
@@ -254,17 +277,28 @@ for current_epoch in range(num_epochs):
             x_ensemble = model(x_input, context)
             # Loss
             raw_loss = loss_fn(x_target, x_ensemble)
-            raw_loss = raw_loss.mean(dim=[0, 2])
+            raw_loss = (raw_loss * feat_weights).sum(dim=2).div(feat_weights.sum()).mean(dim=0)
             gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
             gamma /= gamma.sum()
             loss = (raw_loss * gamma).sum()
             vl += loss.item()
             mse += (x_ensemble.mean(dim=1) - x_target).pow(2).mean()
+            # Collect forecast (normalized PCs) and valid-time indices for index metrics
+            if do_val_metrics:
+                val_frcst.append(x_ensemble.cpu())
+                val_time_idx.append(aux["idx"][:, hist:])
 
         vl /= len(val_dataloader)
         mse /= len(val_dataloader)
         val_loss.append(vl)
         val_mse.append(mse)
+
+        # Per-lead Niño4 + field-mean metrics over the full validation set (fast operator)
+        val_index_log = {}
+        if do_val_metrics:
+            z_frcst = torch.cat(val_frcst, dim=0)
+            time_idx = torch.cat(val_time_idx, dim=0).to(torch.long).numpy()
+            val_index_log = val_monitor.compute(z_frcst, time_idx, prefix="val")
 
     # 2. Training
     model.train()
@@ -281,7 +315,7 @@ for current_epoch in range(num_epochs):
         x_ensemble = model(x_input, context)
         # Loss
         raw_loss = loss_fn(x_target, x_ensemble)
-        raw_loss = raw_loss.mean(dim=[0, 2])
+        raw_loss = (raw_loss * feat_weights).sum(dim=2).div(feat_weights.sum()).mean(dim=0)
         gamma = gamma_scheduler(raw_loss.shape[0], current_epoch).to(device).float()
         gamma /= gamma.sum()
         loss = (raw_loss * gamma).sum()
@@ -317,7 +351,7 @@ for current_epoch in range(num_epochs):
 
     # 5. Log it with wandb
     if not config["dry"]:
-        wandb.log({"train_loss": tl, "val_loss": vl, "val_mse": mse, "lr": scheduler.get_last_lr()[0]})
+        wandb.log({"train_loss": tl, "val_loss": vl, "val_mse": mse, "lr": scheduler.get_last_lr()[0], **val_index_log})
 
     # 6. Save checkpoint
     if model_path is not None:

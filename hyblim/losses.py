@@ -1,20 +1,40 @@
-''' Collection of loss functions for training the model. 
+"""Collection of loss functions for training the model.
 
-@Author  :   Jakob Schlör 
+@Author  :   Jakob Schlör
 @Time    :   2023/08/16 15:28:05
 @Contact :   jakob.schloer@uni-tuebingen.de
-'''
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
 
-class GammaWeighting(nn.Module):    
-    
+
+def variable_loss_weights(variables, sizes, weights):
+    """Per-feature weight vector for a concatenated multivariable axis.
+
+    Used to weight the per-variable contribution to the loss. With all weights
+    equal to 1.0 the downstream normalized weighted mean reduces to a plain mean,
+    reproducing the unweighted loss exactly.
+
+    Args:
+        variables (list[str]): Variable names in feature-axis order, e.g. ['ssta', 'ssha'].
+        sizes (list[int]): Number of features per variable (PCs or channels), e.g. [20, 10].
+        weights (dict[str, float]): Per-variable weights; missing variables default to 1.0.
+
+    Returns:
+        torch.Tensor: 1-D weight tensor of length sum(sizes).
+    """
+    return torch.cat([torch.full((n,), float(weights.get(v, 1.0))) for v, n in zip(variables, sizes)])
+
+
+class GammaWeighting(nn.Module):
+
     def __init__(self, gamma_start, gamma_end, rampup_epochs):
-        """ Gamma Weighting of loss.
+        """Gamma Weighting of loss.
 
         Implementation by @sebastianhofmann
-        
+
         Usage:
         >>> gamma = gamma_scheduler(loss.shape[0], epoch)
         >>> gamma /= gamma.sum()
@@ -30,17 +50,14 @@ class GammaWeighting(nn.Module):
         self.gamma_start = gamma_start
         self.gamma_end = gamma_end
         self.rampup_epochs = rampup_epochs
-    
+
     def forward(self, steps, epoch):
-        gamma = (
-            self.gamma_start 
-            + (self.gamma_end - self.gamma_start) * min(epoch / self.rampup_epochs, 1)
-        )
+        gamma = self.gamma_start + (self.gamma_end - self.gamma_start) * min(epoch / self.rampup_epochs, 1)
         return torch.pow(gamma, torch.arange(steps))
 
 
-def get_statistics(prediction: torch.Tensor, dim: int = 1, mode: str = 'ensemble', epsilon: float = 1e-9):
-    '''Compute the mean and standard deviation of the predictive distribution
+def get_statistics(prediction: torch.Tensor, dim: int = 1, mode: str = "ensemble", epsilon: float = 1e-9):
+    """Compute the mean and standard deviation of the predictive distribution
 
     Author: @jannikthuemmel
     Args:
@@ -50,84 +67,88 @@ def get_statistics(prediction: torch.Tensor, dim: int = 1, mode: str = 'ensemble
          epsilon: a small number to add to the standard deviation to avoid numerical instability
     Returns:
         mu, sigma     (batch, *) tensors of mean and standard deviation
-    '''
-    if mode == 'ensemble':
-        mu, sigma = prediction.mean(dim = dim), prediction.std(dim = dim) + epsilon #mean and standard deviation of the ensemble
-    elif mode == 'parametric':
-        mu, sigma = prediction.split(1, dim = dim)
-    elif mode == 'sample':
+    """
+    if mode == "ensemble":
+        mu, sigma = (
+            prediction.mean(dim=dim),
+            prediction.std(dim=dim) + epsilon,
+        )  # mean and standard deviation of the ensemble
+    elif mode == "parametric":
+        mu, sigma = prediction.split(1, dim=dim)
+    elif mode == "sample":
         mu, sigma = prediction, torch.ones_like(prediction)
     else:
-        raise NotImplementedError(f'Mode {mode} not implemented')
+        raise NotImplementedError(f"Mode {mode} not implemented")
 
     return mu, sigma
 
 
 class NormalCRPS(nn.Module):
-    '''Continuous Ranked Probability Score (CRPS) loss for a normal distribution
+    """Continuous Ranked Probability Score (CRPS) loss for a normal distribution
     as described in the paper "Probabilistic Forecasting with Gated Neural Networks".
-    
+
     Implementation by @jannikthuemmel
-    '''
-    def __init__(self, reduction: str = 'mean', dim: int = 1,  
-                 mode: str = 'ensemble'):
-        '''
+    """
+
+    def __init__(self, reduction: str = "mean", dim: int = 1, mode: str = "ensemble"):
+        """
         reduction: the reduction method to use, can be 'mean', 'sum' or 'none'
         sigma_transform: the transform to apply to the std estimate, can be 'softplus', 'exp' or 'none'
-        '''
+        """
         super().__init__()
         self.dim, self.mode = dim, mode
 
         self.sqrtPi = torch.as_tensor(np.pi).sqrt()
-        self.sqrtTwo = torch.as_tensor(2.).sqrt()
+        self.sqrtTwo = torch.as_tensor(2.0).sqrt()
 
-        if reduction == 'mean':
+        if reduction == "mean":
             self.reduce = lambda x: x.mean()
-        elif reduction == 'sum':
+        elif reduction == "sum":
             self.reduce = lambda x: x.sum()
-        elif reduction == 'none':
+        elif reduction == "none":
             self.reduce = lambda x: x
         else:
-            raise NotImplementedError(f'Reduction {reduction} not implemented')
+            raise NotImplementedError(f"Reduction {reduction} not implemented")
 
     def forward(self, observation: torch.Tensor, prediction: torch.Tensor):
-        '''
+        """
         Compute the CRPS for a normal distribution
             :param observation: (batch, *) tensor of observations
             :param mu: (batch, *) tensor of means
             :param log_sigma: (batch, *) tensor of log standard deviations
-            :return: CRPS score     
-            '''
+            :return: CRPS score
+        """
         mu, sigma = get_statistics(prediction, mode=self.mode, dim=self.dim)
 
-        z = (observation - mu) / sigma #z transform
-        phi = torch.exp(-z ** 2 / 2).div(self.sqrtTwo * self.sqrtPi) #standard normal pdf
-        score = sigma * (z * torch.erf(z / self.sqrtTwo) + 2 * phi - 1 / self.sqrtPi) #crps as per Gneiting et al 2005
+        z = (observation - mu) / sigma  # z transform
+        phi = torch.exp(-(z**2) / 2).div(self.sqrtTwo * self.sqrtPi)  # standard normal pdf
+        score = sigma * (z * torch.erf(z / self.sqrtTwo) + 2 * phi - 1 / self.sqrtPi)  # crps as per Gneiting et al 2005
         reduced_score = self.reduce(score)
         return reduced_score
-    
+
 
 class EmpiricalCRPS(nn.Module):
-    '''Continuous Ranked Probability Score (CRPS) loss for empirical distribution.
+    """Continuous Ranked Probability Score (CRPS) loss for empirical distribution.
 
     Gneiting, Raftery (2012), https://doi.org/10.1198/016214506000001437
 
     Args:
         reduction (str, optional): Reduction over samples in batch. Defaults to 'mean'.
-    '''
-    def __init__(self, dim: int = 1,  reduction = 'mean'):
+    """
+
+    def __init__(self, dim: int = 1, reduction="mean"):
         super().__init__()
 
         self.dim = dim
-        if reduction == 'mean':
+        if reduction == "mean":
             self.reduce = lambda x: x.nanmean()
-        elif reduction == 'sum':
+        elif reduction == "sum":
             self.reduce = lambda x: x.nansum()
-        elif reduction == 'none':
+        elif reduction == "none":
             self.reduce = lambda x: x
         else:
-            raise NotImplementedError(f'Reduction {reduction} not implemented')
-    
+            raise NotImplementedError(f"Reduction {reduction} not implemented")
+
     def forward(self, observation: torch.Tensor, prediction: torch.Tensor):
         """CPRS for empirical distribution.
 
@@ -143,14 +164,12 @@ class EmpiricalCRPS(nn.Module):
 
         prediction_sort = torch.sort(prediction, dim=self.dim).values
         diff = torch.diff(prediction_sort, dim=self.dim)
-        weight = torch.arange(
-                1, n_member, dtype=torch.float32, device=prediction.device
-            ) * torch.arange(
-                n_member - 1, 0, -1, dtype=torch.float32, device=prediction.device
-            )
+        weight = torch.arange(1, n_member, dtype=torch.float32, device=prediction.device) * torch.arange(
+            n_member - 1, 0, -1, dtype=torch.float32, device=prediction.device
+        )
         # Expand dimensions of weight
         ndim = [1] * prediction_sort.ndim
-        ndim[self.dim] = len(weight) 
+        ndim[self.dim] = len(weight)
         weight = weight.reshape(ndim)
 
         score = absolute_error - torch.sum(diff * weight, dim=self.dim) / n_member**2

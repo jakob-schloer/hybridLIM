@@ -16,13 +16,14 @@ import pandas as pd
 import xarray as xr
 from utils import base_parser
 from utils import display_label
-from utils import gpl
 from utils import load_experiments
 from utils import load_raw_data_and_eof
 from utils import model_color
 from utils import plt
 from utils import preproc
 from utils import save_figure
+
+import hyblim.geoplot as gpl
 
 PERCENTILE_RANGES = {"weak": (0, 10), "strong": (90, 100)}
 PERCENTILE_MARKER = {"weak": "x", "strong": "o"}

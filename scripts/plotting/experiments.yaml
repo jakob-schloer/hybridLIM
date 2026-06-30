@@ -6,21 +6,16 @@ experiments:
       - ${modelpath}/lim/cslim_ssta-ssha
     color: darkblue
     num_data: null
-
-  # LIM-version progression for Fig. 2. The two SSTA-only variants below are
-  # still to be computed; the paths are placeholders (update once available).
   ST-LIM (ssta):
     paths:
       - ${modelpath}/lim/stlim_ssta
     color: "#9ecae1"
     num_data: null
-
   CS-LIM (ssta):
     paths:
       - ${modelpath}/lim/cslim_ssta
     color: "#4292c6"
     num_data: null
-
   Persistence:
     paths:
       - ${modelpath}/persistence
@@ -79,7 +74,8 @@ experiments:
     paths:
       # - ${modelpath}/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
       # - ${modelpath}/limlstm/30535378_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_repro
-      - /home/ecm1922/Projects/hybridLIM/models/limlstm/30979214_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
+      # - ${modelpath}/limlstm/30979214_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64
+      - ${modelpath}/limlstm/33205995_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_repro
     color: darkred
     num_data: null
 
@@ -134,7 +130,8 @@ experiments:
   LSTM:
     paths:
       # - ${modelpath}/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
-      - ${modelpath}/lstm/30535376_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
+      # - ${modelpath}/lstm/30535376_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
+      - ${modelpath}/lstm/33205125_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
     color: gold
     num_data: null
 
@@ -189,7 +186,8 @@ experiments:
   ConvLSTM:
     paths:
       # - ${modelpath}/convlstm/30458451_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32
-      - ${modelpath}/convlstm/30535380_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_repro
+      # - ${modelpath}/convlstm/30535380_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_repro
+      - ${modelpath}/convlstm/33205132_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_repro
     color: darkorange
     num_data: null
 
