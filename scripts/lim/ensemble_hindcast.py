@@ -46,7 +46,11 @@ if "ssha" in config["vars"]:
         PATH
         + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc"
     )
-config["n_eof"] = [20, 10]
+# Number of EOF components for each variable
+config["n_eof"] = []
+n_eof_dict = {"ssta": 20, "ssha": 10}
+for var in config["vars"]:
+    config["n_eof"].append(n_eof_dict[var])
 
 if config["eof_path"] is None and config["num_traindata"] is None:
     config["eof_path"] = (

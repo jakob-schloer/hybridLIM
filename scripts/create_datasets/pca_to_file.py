@@ -15,14 +15,14 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 # Parameters
 # ======================================================================================
 config = dict(
-    vars=["ssta", "ssha"],
+    vars=["ssta"],  # ["ssta", "ssha"],
     datapaths={
         "ssta": PATH
         + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc",
-        "ssha": PATH
-        + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
+        # "ssha": PATH
+        # + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
     },
-    n_eof=[20, 10],
+    n_eof=[20],  # [20, 10],
     outpath=PATH + "/../../data/cesm2-picontrol/pca/",
 )
 
@@ -43,7 +43,7 @@ for var, path in config["datapaths"].items():
 ds = xr.merge(da_arr)
 
 # Apply land sea mask
-lsm = xr.open_dataset("../../data/land_sea_mask_common.nc")["lsm"]
+lsm = xr.open_dataset(PATH + "/../../data/land_sea_mask_common.nc")["lsm"]
 ds = ds.where(lsm != 1, other=np.nan)
 
 # %%
