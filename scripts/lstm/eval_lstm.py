@@ -5,9 +5,9 @@
 @Contact :   jakob.schloer@uni-tuebingen.de
 """
 
+# %%
 import argparse
 import json
-# %%
 import os
 from importlib import reload
 
@@ -69,6 +69,42 @@ def hindcast(model, dataloader, normalizer_pca, device, history, horizon):
     return z_hindcast, time_idx
 
 
+def save_latent_hindcast(z_frcst, init_times, combined_eof, modelpath, datasplit) -> str:
+    """Save the LSTM hindcast in PC space.
+
+    Mirrors the CS-LIM / LIM-LSTM hindcast files so figures can reconstruct
+    grid-space LSTM forecasts without re-running the model.
+
+    Args:
+        z_frcst (np.ndarray): Forecast PCs (time, member, lag, eof).
+        init_times (np.ndarray): Initialization time of each sample.
+        combined_eof (eof.CombinedEOF): EOF used (for the filename + eof coord).
+        modelpath (str): Model root folder to write into.
+        datasplit (str): 'train' | 'val' | 'test'.
+
+    Returns:
+        str: Path to the saved netCDF file.
+    """
+    n_time, n_member, n_lag, n_comp = z_frcst.shape
+    z_da = xr.DataArray(
+        z_frcst,
+        dims=["time", "member", "lag", "eof"],
+        coords=dict(
+            time=init_times,
+            member=np.arange(n_member),
+            lag=np.arange(1, n_lag + 1),
+            eof=np.arange(1, n_comp + 1),
+        ),
+        name="z",
+    )
+    vars_str = "-".join(combined_eof.vars)
+    eof_str = "-".join(str(e.n_components) for e in combined_eof.eofa_lst)
+    outpath = os.path.join(modelpath, f"lstm_hindcast_{vars_str}_eof{eof_str}_{datasplit}.nc")
+    z_da.to_dataset().to_netcdf(outpath)
+    print(f"Saved LSTM hindcast to {outpath}", flush=True)
+    return outpath
+
+
 def perform_hindcast_evaluation(
     model: torch.nn.Module,
     checkpoint: dict,
@@ -78,7 +114,7 @@ def perform_hindcast_evaluation(
     combined_eof: eof.CombinedEOF,
     lag_arr: list,
     scorepath: str,
-):
+) -> None:
     """Perform hindcast and compute verification metrics for LSTM model.
 
     Args:
@@ -98,6 +134,19 @@ def perform_hindcast_evaluation(
     # Hindcast in latent space
     z_hindcast, time_idx = hindcast(model, dataloader, scaler_pca, device, history=4, horizon=24)
 
+    # Save the hindcast (PC space) for downstream grid-space figures.
+    # time_idx[:, 0] is the lag-1 valid time, so the initialization is one month
+    # earlier; key the hindcast by that initialization time.
+    times = dataloader.dataset.data["time"].data
+    init_times = times[time_idx[:, 0] - 1]
+    save_latent_hindcast(
+        z_hindcast["frcst"],
+        init_times,
+        combined_eof,
+        os.path.dirname(scorepath.rstrip("/")),
+        "test",
+    )
+
     # Extended PCA with 300 components
     n_components_full = 300
     eofa_list = []
@@ -111,7 +160,6 @@ def perform_hindcast_evaluation(
     extended_eof = eof.CombinedEOF(eofa_list, vars=list(ds.data_vars))
 
     # Verification metrics
-    times = dataloader.dataset.data["time"].data
     ds_target = ds.sel(time=times)
     verification_per_gridpoint, verification_per_time, nino_indices = eval.latent_evaluation(
         z_hindcast["frcst"], time_idx, times, combined_eof, ds_target, lag_arr, extended_eof

@@ -69,6 +69,42 @@ def hindcast(model, dataloader, normalizer_pca):
     return z_hindcast, time_idx
 
 
+def save_latent_hindcast(z_frcst, init_times, combined_eof, modelpath, datasplit) -> str:
+    """Save the corrected (hybrid) hindcast in PC space.
+
+    Mirrors the CS-LIM hindcast file so figures can reconstruct grid-space
+    LIM-LSTM forecasts without re-running the model.
+
+    Args:
+        z_frcst (np.ndarray): Forecast PCs (time, member, lag, eof).
+        init_times (np.ndarray): Initialization time of each sample.
+        combined_eof (eof.CombinedEOF): EOF used (for the filename + eof coord).
+        modelpath (str): Model root folder to write into.
+        datasplit (str): 'train' | 'val' | 'test'.
+
+    Returns:
+        str: Path to the saved netCDF file.
+    """
+    n_time, n_member, n_lag, n_comp = z_frcst.shape
+    z_da = xr.DataArray(
+        z_frcst,
+        dims=["time", "member", "lag", "eof"],
+        coords=dict(
+            time=init_times,
+            member=np.arange(n_member),
+            lag=np.arange(1, n_lag + 1),
+            eof=np.arange(1, n_comp + 1),
+        ),
+        name="z",
+    )
+    vars_str = "-".join(combined_eof.vars)
+    eof_str = "-".join(str(e.n_components) for e in combined_eof.eofa_lst)
+    outpath = os.path.join(modelpath, f"limlstm_hindcast_{vars_str}_eof{eof_str}_{datasplit}.nc")
+    z_da.to_dataset().to_netcdf(outpath)
+    print(f"Saved hybrid hindcast to {outpath}", flush=True)
+    return outpath
+
+
 def perform_hindcast_evaluation(
     model: torch.nn.Module,
     ds: xr.Dataset,
@@ -83,9 +119,8 @@ def perform_hindcast_evaluation(
 
     Args:
         model (torch.nn.Module): LSTM model
-        checkpoint (dict): Checkpoint of model
         ds (xr.Dataset): Dataset
-        dataloaders (dict): Dictionary of dataloader (torch.utils.data.DataLoader)
+        dataloaders (dict): Dictionary of dataloaders.
         datasplit (str): Datasplit to evaluate, i.e. 'train', 'val', 'test'
         scaler_pca (preproc.Normalizer): Normalizer for PCA space
         combined_eof (eof.CombinedEOF): Combined EOF object
@@ -94,6 +129,19 @@ def perform_hindcast_evaluation(
     """
     # Hindcast in latent space
     z_hindcast, time_idx = hindcast(model, dataloaders[datasplit], scaler_pca)
+
+    # Save the corrected hindcast (PC space) for downstream grid-space figures.
+    # time_idx[:, 0] is the lag-1 valid time, so the initialization is one month
+    # earlier; key the hindcast by that initialization time.
+    times = dataloaders[datasplit].dataset.data["time"].data
+    init_times = times[time_idx[:, 0] - 1]
+    save_latent_hindcast(
+        z_hindcast["frcst"],
+        init_times,
+        combined_eof,
+        os.path.dirname(scorepath.rstrip("/")),
+        datasplit,
+    )
 
     # Extended PCA with 300 components
     n_components_full = 300
@@ -108,7 +156,6 @@ def perform_hindcast_evaluation(
     extended_eof = eof.CombinedEOF(eofa_list, vars=list(ds.data_vars))
 
     # Verification metrics
-    times = dataloaders[datasplit].dataset.data["time"].data
     ds_target = ds.sel(time=times)
     verification_per_gridpoint, verification_per_time, nino_indices = eval.latent_evaluation(
         z_hindcast["frcst"], time_idx, times, combined_eof, ds_target, lag_arr, extended_eof
@@ -140,70 +187,57 @@ def argument_parser():
     return params
 
 
-# if __name__ == "__main__":
-# %%
-# Specify parameters
-debug = False
-if debug:
-    params = {
-        "model_path": PATH
-        + "/../../models/limlstm/30237852_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64",
-        "datasplit": "val",
-        "lags": [1, 3, 6, 9, 12, 15, 18, 21, 24],
+def build_model_and_data(model_path):
+    """Load the LIM-LSTM model and its LIM-ensemble dataloaders from `model_path`.
+
+    Returns (model, ds, dataloaders, combined_eof, normalizer_pca).
+    """
+    with open(model_path + "/config.json", "r") as f:
+        config = json.load(f)
+
+    # Replace stored paths with this checkout's locations.
+    config["path"] = PATH + "/../../models/limlstm/"
+    config["postfix"] = ""
+    config["evaluate"] = True
+    config["datapaths"] = {
+        "ssta": PATH
+        + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc",
+        "ssha": PATH
+        + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
     }
-else:
-    params = argument_parser()
+    config["lsm_path"] = PATH + "/../../data/land_sea_mask_common.nc"
+    config["lim_path"] = PATH + "/../../models/lim/cslim_ssta-ssha/cslim_hindcast_ssta-ssha_eof20-10"
+
+    lim_hindcast = {
+        key: xr.open_dataset(config["lim_path"] + f"_{key}.nc")["z"].sel(lag=slice(1, None))
+        for key in ["train", "val", "test"]
+    }
+    ds, _, dataloaders, combined_eof, normalizer_pca = dataloader.load_pcdata_lim_ensemble(lim_hindcast, **config)
+
+    num_condition = 12 if config["film"] else -1
+    model = lstm.ResidualLSTM(
+        input_dim=combined_eof.n_components,
+        hidden_dim=config["hidden_dim"],
+        num_conditions=num_condition,
+        num_layers=config["layers"],
+        T_max=config["chrono"],
+    )
+    checkpoint = torch.load(model_path + "/final_checkpoint.pt")
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.to(DEVICE)
+    return model, ds, dataloaders, combined_eof, normalizer_pca
 
 
-with open(params["model_path"] + "/config.json", "r") as f:
-    config = json.load(f)
-# %%
-# Replace paths
-config["path"] = PATH + "/../../models/limlstm/"
-config["postfix"] = ""
-config["evaluate"] = True
-config["datapaths"] = {
-    "ssta": PATH
-    + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssta_lat-31_33_lon130_290_gr1.0.nc",
-    "ssha": PATH
-    + "/../../data/cesm2-picontrol/b.e21.B1850.f09_g17.CMIP6-piControl.001.pop.h.ssha_lat-31_33_lon130_290_gr1.0.nc",
-}
-config["lsm_path"] = PATH + "/../../data/land_sea_mask_common.nc"
-config["lim_path"] = PATH + "/../../models/lim/cslim_ssta-ssha/cslim_hindcast_ssta-ssha_eof20-10"
+def main(params):
+    model, ds, dataloaders, combined_eof, normalizer_pca = build_model_and_data(params["model_path"])
+    lag_arr = [int(lag) for lag in params["lags"]]
+    scorepath = params["model_path"] + "/metrics"
+    perform_hindcast_evaluation(
+        model, ds, dataloaders, params["datasplit"], normalizer_pca, combined_eof, lag_arr, scorepath
+    )
 
-# %%
 
-# Load data
-lim_hindcast = {
-    "train": xr.open_dataset(config["lim_path"] + "_train.nc")["z"].sel(lag=slice(1, None)),
-    "val": xr.open_dataset(config["lim_path"] + "_val.nc")["z"].sel(lag=slice(1, None)),
-    "test": xr.open_dataset(config["lim_path"] + "_test.nc")["z"].sel(lag=slice(1, None)),
-}
-
-# Create dataset
-ds, datasets, dataloaders, combined_eofa, normalizer_pca = dataloader.load_pcdata_lim_ensemble(lim_hindcast, **config)
-
-# %%
-# Define and load model
-num_condition = 12 if config["film"] else -1
-model = lstm.ResidualLSTM(
-    input_dim=combined_eofa.n_components,
-    hidden_dim=config["hidden_dim"],
-    num_conditions=num_condition,
-    num_layers=config["layers"],
-    T_max=config["chrono"],
-)
-
-# Load model with best loss
-checkpoint = torch.load(params["model_path"] + "/final_checkpoint.pt")
-model.load_state_dict(checkpoint["model_state_dict"])
-model.to(DEVICE)
-
-# %%
-lag_arr = [int(lag) for lag in params["lags"]]
-scorepath = params["model_path"] + "/metrics"
-perform_hindcast_evaluation(
-    model, ds, dataloaders, params["datasplit"], normalizer_pca, combined_eofa, lag_arr, scorepath
-)
+if __name__ == "__main__":
+    main(argument_parser())
 
 # %%

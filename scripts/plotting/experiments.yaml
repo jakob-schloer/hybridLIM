@@ -1,9 +1,30 @@
 modelpath: "../../models/"
 experiments:
+  # CS-LIM (ssta, ssha): the reference LIM used across all figures.
   LIM:
     paths:
       - ${modelpath}/lim/cslim_ssta-ssha
     color: darkblue
+    num_data: null
+
+  # LIM-version progression for Fig. 2. The two SSTA-only variants below are
+  # still to be computed; the paths are placeholders (update once available).
+  ST-LIM (ssta):
+    paths:
+      - ${modelpath}/lim/stlim_ssta
+    color: "#9ecae1"
+    num_data: null
+
+  CS-LIM (ssta):
+    paths:
+      - ${modelpath}/lim/cslim_ssta
+    color: "#4292c6"
+    num_data: null
+
+  Persistence:
+    paths:
+      - ${modelpath}/persistence
+    color: grey
     num_data: null
 
   LIM_n600:
