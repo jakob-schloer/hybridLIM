@@ -5,6 +5,10 @@ Niño4 skill of CS-LIM, LIM-LSTM, LSTM and ConvLSTM, scored on the test set:
         1500-year training set;
  (c, d) RMSESS / CRPSS at a fixed lead time vs. number of training years.
 All skill scores are relative to monthly climatology.
+
+Where the registry lists several runs per training-data subset (repeated
+trainings with different weight initialization and data shuffling), panels
+(c, d) show the mean across runs with error bars giving their std.
 """
 
 from utils import NUM_DATA
@@ -12,7 +16,7 @@ from utils import base_parser
 from utils import display_label
 from utils import load_experiments
 from utils import load_nino_scores
-from utils import load_nino_scores_ndata
+from utils import load_nino_scores_ndata_runs
 from utils import model_color
 from utils import plt
 from utils import save_figure
@@ -37,8 +41,9 @@ def main():
     print("Generating Figure 5 (deep-learning baselines)...")
     # Top row: full-data models scored over lead time.
     scores_full, _ = load_nino_scores(experiments, args.models, args.datasplit)
-    # Bottom row: training-data sweep, scored at a fixed lead time.
-    scores_ndata, _ = load_nino_scores_ndata(experiments, args.models, NUM_DATA, args.datasplit)
+    # Bottom row: training-data sweep, scored at a fixed lead time; all repeated
+    # runs are kept so the panels can show their mean and spread.
+    scores_ndata, _ = load_nino_scores_ndata_runs(experiments, args.models, NUM_DATA, args.datasplit)
 
     ncols = len(args.scores)
     fig, axs = plt.subplots(2, ncols, figsize=(4 * ncols, 6))
@@ -66,11 +71,13 @@ def main():
             if model not in scores_ndata or score_name not in scores_ndata[model]:
                 continue
             score = scores_ndata[model][score_name][args.index].sel(lag=args.lag)
-            ax.plot(
+            ax.errorbar(
                 score["ndata"],
-                score.values,
+                score.mean(dim="run", skipna=True).values,
+                yerr=score.std(dim="run", skipna=True).values,
                 marker="o",
                 linestyle="-",
+                capsize=3,
                 color=model_color(experiments, model),
                 label=display_label(model),
             )

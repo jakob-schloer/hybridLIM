@@ -81,105 +81,183 @@ experiments:
 
   LIM+LSTM_n600:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_600/30237855_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_600
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/33818119_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_600
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/34373414_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_600
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/34388764_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_600
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/34388797_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_600
+      - ${modelpath}/limlstm/num_traindata/ntrain_600/34388816_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_600
     color: null
     num_data: 600
 
   LIM+LSTM_n1200:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_1200/30237857_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_1200
+      # - ${modelpath}/limlstm/num_traindata/ntrain_1200/30237857_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_1200
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/33818127_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_1200
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/34373415_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_1200
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/34388766_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_1200
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/34388798_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_1200
+      - ${modelpath}/limlstm/num_traindata/ntrain_1200/34388817_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_1200
     color: null
     num_data: 1200
 
   LIM+LSTM_n2400:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_2400/30237858_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_2400
+      # - ${modelpath}/limlstm/num_traindata/ntrain_2400/30237858_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_2400
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/33818129_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_2400
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/34373416_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_2400
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/34388768_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_2400
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/34388799_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_2400
+      - ${modelpath}/limlstm/num_traindata/ntrain_2400/34388821_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_2400
     color: null
     num_data: 2400
 
   LIM+LSTM_n3600:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_3600/30237859_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_3600
+      # - ${modelpath}/limlstm/num_traindata/ntrain_3600/30237859_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_3600
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/33818130_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_3600
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/34373418_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_3600
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/34388771_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_3600
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/34388801_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_3600
+      - ${modelpath}/limlstm/num_traindata/ntrain_3600/34388824_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_3600
     color: null
     num_data: 3600
 
   LIM+LSTM_n6000:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_6000/30237860_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_6000
+      # - ${modelpath}/limlstm/num_traindata/ntrain_6000/30237860_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_6000
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/33818131_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_6000
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/34373419_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_6000
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/34388773_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_6000
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/34388802_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_6000
+      - ${modelpath}/limlstm/num_traindata/ntrain_6000/34388825_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_6000
     color: null
     num_data: 6000
 
   LIM+LSTM_n9000:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_9000/30237861_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_9000
+      # - ${modelpath}/limlstm/num_traindata/ntrain_9000/30237861_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_9000
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/33818132_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_9000
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/34373421_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_9000
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/34388776_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_9000
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/34388803_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_9000
+      - ${modelpath}/limlstm/num_traindata/ntrain_9000/34388829_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_9000
     color: null
     num_data: 9000
 
   LIM+LSTM_n12000:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_12000/30237862_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_12000
+      # - ${modelpath}/limlstm/num_traindata/ntrain_12000/30237862_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_12000
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/33818139_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_12000
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/34373423_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_12000
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/34388777_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_12000
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/34388805_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_12000
+      - ${modelpath}/limlstm/num_traindata/ntrain_12000/34388830_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_12000
     color: null
     num_data: 12000
 
   LIM+LSTM_n18000:
     paths:
-      - ${modelpath}/limlstm/num_traindata/ntrain_18000/30237863_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_18000
+      # - ${modelpath}/limlstm/num_traindata/ntrain_18000/30237863_LIM-LSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhoriz_20_layers_2_latent32_cosinelr0.001-1e-06_bs64_ntrain_18000
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/33818141_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_18000
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/34373424_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_18000
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/34388780_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_18000
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/34388806_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_18000
+      - ${modelpath}/limlstm/num_traindata/ntrain_18000/34388831_LIM-LSTM_ssta_n20_ssha_n10_g0.9-crps_member16_nhoriz_24_layers_1_latent16_cosinelr0.001-1e-06_bs64_wssha0.9_ntrain_18000
     color: null
     num_data: 18000
 
   LSTM:
     paths:
-      # - ${modelpath}/lstm/598257_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64
-      # - ${modelpath}/lstm/30535376_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
-      - ${modelpath}/lstm/33205125_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
+      # - ${modelpath}/lstm/33205125_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_repro
+      - ${modelpath}/lstm/hpo/36211409_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_hpo_t038
     color: gold
     num_data: null
 
   LSTM_n600:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_600/598258_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_600
+      # - ${modelpath}/lstm/num_traindata/ntrain_600/598258_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_600
+      - ${modelpath}/lstm/num_traindata/ntrain_600/34373604_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_600
+      - ${modelpath}/lstm/num_traindata/ntrain_600/34388932_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_600
+      - ${modelpath}/lstm/num_traindata/ntrain_600/34389001_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_600
+      - ${modelpath}/lstm/num_traindata/ntrain_600/34389015_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_600
+      - ${modelpath}/lstm/num_traindata/ntrain_600/36379640_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_600
     color: null
     num_data: 600
 
   LSTM_n1200:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_1200/598259_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_1200
+      # - ${modelpath}/lstm/num_traindata/ntrain_1200/598259_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_1200
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/34373607_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_1200
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/34388939_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_1200
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/34389003_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_1200
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/34389016_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_1200
+      - ${modelpath}/lstm/num_traindata/ntrain_1200/36379641_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_1200
     color: null
     num_data: 1200
 
   LSTM_n2400:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_2400/598260_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_2400
+      # - ${modelpath}/lstm/num_traindata/ntrain_2400/598260_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_2400
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/34373608_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_2400
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/34388941_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_2400
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/34389004_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_2400
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/34389017_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_2400
+      - ${modelpath}/lstm/num_traindata/ntrain_2400/36382011_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_2400
     color: null
     num_data: 2400
 
   LSTM_n3600:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_3600/598261_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_3600
+      # - ${modelpath}/lstm/num_traindata/ntrain_3600/598261_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_3600
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/34373609_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_3600
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/34388944_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_3600
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/34389006_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_3600
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/34389019_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_3600
+      - ${modelpath}/lstm/num_traindata/ntrain_3600/36382012_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_3600
     color: null
     num_data: 3600
 
   LSTM_n6000:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_6000/598262_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_6000
+      # - ${modelpath}/lstm/num_traindata/ntrain_6000/598262_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_6000
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/34373614_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_6000
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/34388945_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_6000
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/34389007_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_6000
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/34389020_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_6000
+      - ${modelpath}/lstm/num_traindata/ntrain_6000/36382013_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_6000
     color: null
     num_data: 6000
 
   LSTM_n9000:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_9000/598263_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_9000
+      # - ${modelpath}/lstm/num_traindata/ntrain_9000/598263_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_9000
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/34373615_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_9000
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/34388949_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_9000
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/34389008_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_9000
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/34389022_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_9000
+      - ${modelpath}/lstm/num_traindata/ntrain_9000/36382014_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_9000
     color: null
     num_data: 9000
 
   LSTM_n12000:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_12000/598264_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_12000
+      # - ${modelpath}/lstm/num_traindata/ntrain_12000/598264_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_12000
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/34373616_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_12000
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/34388951_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_12000
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/34389010_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_12000
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/34389024_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_12000
+      - ${modelpath}/lstm/num_traindata/ntrain_12000/36382016_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_12000
     color: null
     num_data: 12000
 
   LSTM_n18000:
     paths:
-      - ${modelpath}/lstm/num_traindata/ntrain_18000/598265_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_18000
+      # - ${modelpath}/lstm/num_traindata/ntrain_18000/598265_CSLSTM_eof_20-10ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_latent32_cosinelr0.005-5e-06_bs64_ntrain_18000
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/34373617_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_18000
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/34388952_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_18000
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/34389012_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_18000
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/34389025_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_18000
+      - ${modelpath}/lstm/num_traindata/ntrain_18000/36382017_CSLSTM_ssta_n20_ssha_n10_g0.65-crps_member16_nhist_12_nhoriz_20_layers_1_latent32_cosinelr0.008-8e-06_bs64_ntrain_18000
     color: darkblue
     num_data: 18000
 
@@ -191,50 +269,50 @@ experiments:
     color: darkorange
     num_data: null
 
-  ConvLSTM_n600:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_600/30458452_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_600
-    color: null
-    num_data: 600
+  # ConvLSTM_n600:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_600/30458452_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_600
+  #   color: null
+  #   num_data: 600
 
-  ConvLSTM_n1200:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_1200/30458454_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_1200
-    color: null
-    num_data: 1200
+  # ConvLSTM_n1200:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_1200/30458454_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_1200
+  #   color: null
+  #   num_data: 1200
 
-  ConvLSTM_n2400:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_2400/30458455_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_2400
-    color: null
-    num_data: 2400
+  # ConvLSTM_n2400:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_2400/30458455_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_2400
+  #   color: null
+  #   num_data: 2400
 
-  ConvLSTM_n3600:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_3600/30458457_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_3600
-    color: null
-    num_data: 3600
+  # ConvLSTM_n3600:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_3600/30458457_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_3600
+  #   color: null
+  #   num_data: 3600
 
-  ConvLSTM_n6000:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_6000/30458462_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_6000
-    color: null
-    num_data: 6000
+  # ConvLSTM_n6000:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_6000/30458462_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_6000
+  #   color: null
+  #   num_data: 6000
 
-  ConvLSTM_n9000:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_9000/30458463_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_9000
-    color: null
-    num_data: 9000
+  # ConvLSTM_n9000:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_9000/30458463_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_9000
+  #   color: null
+  #   num_data: 9000
 
-  ConvLSTM_n12000:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_12000/30458466_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_12000
-    color: null
-    num_data: 12000
+  # ConvLSTM_n12000:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_12000/30458466_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_12000
+  #   color: null
+  #   num_data: 12000
 
-  ConvLSTM_n18000:
-    paths:
-      - ${modelpath}/convlstm/num_traindata/ntrain_18000/30458472_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_18000
-    color: null
-    num_data: 18000
+  # ConvLSTM_n18000:
+  #   paths:
+  #     - ${modelpath}/convlstm/num_traindata/ntrain_18000/30458472_ConvLSTM_ssta_ssha_g0.65-crps_member16_nhist_12_nhoriz_20_layers_2_ch256_cosinelr0.008-1e-06_bs32_ntrain_18000
+  #   color: null
+  #   num_data: 18000

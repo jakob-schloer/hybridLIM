@@ -359,6 +359,17 @@ for current_epoch in range(num_epochs):
             print("Save checkpoint for lowest val. loss!", flush=True)
             torch.save(checkpoint, model_path + "/min_checkpoint.pt")
             val_loss_min = vl
+            if val_index_log:
+                val_objective = {
+                    "epoch": current_epoch,
+                    "val_loss": vl,
+                    "nino4_acc_mean": val_index_log["val/nino4/acc/mean"],
+                    "nino4_acc_per_lag": {
+                        int(lag): val_index_log[f"val/nino4/acc/lag{int(lag)}"] for lag in val_lag_arr
+                    },
+                }
+                with open(model_path + "/val_objective.json", "w") as f:
+                    json.dump(val_objective, f, indent=2)
 
 
 # Save model at the end

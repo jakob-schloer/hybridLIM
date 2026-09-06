@@ -163,6 +163,52 @@ def load_nino_scores_ndata(experiments, models, num_data=NUM_DATA, datasplit="te
     return scores, scores_month
 
 
+def load_nino_scores_ndata_runs(experiments, models, num_data=NUM_DATA, datasplit="test"):
+    """Nino scores across the training-data sweep, keeping every repeated run.
+
+    Same as `load_nino_scores_ndata`, but registry entries listing several paths
+    (repeated trainings with different weight initialization and data shuffling)
+    are all loaded and stacked along an extra ``run`` dimension, so callers can
+    show the mean and spread across runs. Training-data subsets with fewer runs
+    than others are padded with NaN.
+
+    Returns (scores, scores_month), each {model: {scorekey: Dataset}} where every
+    Dataset has the leading dimensions ``(ndata, run)``.
+    """
+    scores, scores_month = {}, {}
+    for model in models:
+        per_n, per_n_month, found = [], [], []
+        for n in num_data:
+            cfg = experiments.get(experiment_name(model, n))
+            if cfg is None:
+                continue
+            runs, runs_month = [], []
+            for path in cfg["paths"]:
+                s, sm = _load_nino_score(Path(path), datasplit)
+                if s is None:
+                    continue
+                runs.append(s)
+                runs_month.append(sm)
+            if not runs:
+                continue
+            run_idx = pd.Index(range(len(runs)), name="run")
+            runs = metric.listofdicts_to_dictoflists(runs)
+            runs_month = metric.listofdicts_to_dictoflists(runs_month)
+            per_n.append({k: xr.concat(v, dim=run_idx) for k, v in runs.items()})
+            per_n_month.append({k: xr.concat(v, dim=run_idx) for k, v in runs_month.items()})
+            found.append(n)
+        if not found:
+            print(f"  [WARN] {model}: no training-data subsets found, skipping")
+            continue
+        per_n = metric.listofdicts_to_dictoflists(per_n)
+        per_n_month = metric.listofdicts_to_dictoflists(per_n_month)
+        ndata_idx = pd.Index(found, name="ndata")
+        # join="outer" pads subsets with fewer runs than others with NaN.
+        scores[model] = {k: xr.concat(v, dim=ndata_idx, join="outer") for k, v in per_n.items()}
+        scores_month[model] = {k: xr.concat(v, dim=ndata_idx, join="outer") for k, v in per_n_month.items()}
+    return scores, scores_month
+
+
 # ---------------------------------------------------------------------------
 # Raw data + EOF (for grid-space reconstruction figures)
 # ---------------------------------------------------------------------------

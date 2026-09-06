@@ -238,7 +238,7 @@ def time_series_score(frcst: xr.Dataset, target: xr.Dataset) -> xr.Dataset:
     if "member" in frcst.dims:
         frcst_mean = frcst.mean(dim="member")
         frcst_std = frcst.std(dim="member")
-        n_members = frcst.dims["member"]
+        n_members = frcst.sizes["member"]
     else:
         frcst_mean = frcst
         frcst_std = None

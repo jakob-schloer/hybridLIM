@@ -3,12 +3,16 @@
 Anomaly correlation coefficient (ACC, = `cc`) of the Nino4 index at a fixed
 forecast lead time, evaluated on the test set, as a function of the number of
 training years. One curve per model (CS-LIM, LIM-LSTM, LSTM).
+
+Where the registry lists several runs per training-data subset (repeated
+trainings with different weight initialization and data shuffling), the mean
+across runs is shown with +- std shading.
 """
 
 from utils import NUM_DATA
 from utils import base_parser
 from utils import load_experiments
-from utils import load_nino_scores_ndata
+from utils import load_nino_scores_ndata_runs
 from utils import model_color
 from utils import plt
 from utils import save_figure
@@ -26,16 +30,19 @@ def main():
     experiments = load_experiments(args.experiments)
 
     print("Generating Figure 1 (skill vs. training-data length)...")
-    scores, _ = load_nino_scores_ndata(experiments, args.models, NUM_DATA, args.datasplit)
+    scores, _ = load_nino_scores_ndata_runs(experiments, args.models, NUM_DATA, args.datasplit)
 
     fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
     for model in args.models:
         if model not in scores or "cc" not in scores[model]:
             continue
         acc = scores[model]["cc"][args.index].sel(lag=args.lag)
-        ax.plot(acc["ndata"], acc.values, marker="o", linestyle="-", color=model_color(experiments, model), label=model)
+        mean_acc = acc.mean(dim="run", skipna=True)
+        std_acc = acc.std(dim="run", skipna=True)
+        color = model_color(experiments, model)
 
-    ax.axhline(0.5, color="k", linestyle="--", linewidth=0.8, label="skillful (ACC=0.5)")
+        ax.plot(acc["ndata"], mean_acc, marker="o", linestyle="-", color=color, label=model)
+        ax.fill_between(acc["ndata"], mean_acc - std_acc, mean_acc + std_acc, alpha=0.2, color=color)
 
     ax.set_xscale("log")
     ax.set_xticks(NUM_DATA)

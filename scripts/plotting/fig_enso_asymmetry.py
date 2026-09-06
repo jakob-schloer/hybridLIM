@@ -38,7 +38,12 @@ HINDCAST_FILE = {
 ROW_MODELS = ["Target", "LIM", "LIM+LSTM", "LSTM"]
 ROW_LABELS = {"Target": "Target", "LIM": "CS-LIM", "LIM+LSTM": "LIM-LSTM", "LSTM": "LSTM"}
 
-SSTA_ARGS = dict(cmap="RdBu_r", vmin=-3, vmax=3, eps=0.5, centercolor="white")
+# Column-specific SSTA color ranges: W-C is an anomaly magnitude (larger range),
+# W+C is the (smaller) warm/cold asymmetry.
+SSTA_ARGS = [
+    dict(cmap="RdBu_r", vmin=-3, vmax=3, eps=0.2, centercolor="white"),  # W - C
+    dict(cmap="RdBu_r", vmin=-1, vmax=1, eps=0.2, centercolor="white"),  # W + C
+]
 SSHA_ARGS = dict(
     kwargs_pl={"colors": "k", "levels": [-1.5, -0.75, 0.75, 1.5], "linewidths": 1.0},
     zerolinecolor=None,
@@ -144,15 +149,15 @@ def main():
     fig, axs = plt.subplots(len(rows), 2, figsize=(9, 2.4 * len(rows)), subplot_kw={"projection": proj})
     axs = np.atleast_2d(axs)
 
-    im = None
+    ims = [None, None]
     for i, model in enumerate(rows):
         warm, cold = fields[model]
         wmc, wpc, mask_mc, mask_pc = composites(warm, cold)
         for j, (comp, mask) in enumerate([(wmc, mask_mc), (wpc, mask_pc)]):
             out = gpl.plot_map(
-                comp["ssta"].where(mask), ax=axs[i, j], central_longitude=180, add_bar=False, **SSTA_ARGS
+                comp["ssta"].where(mask), ax=axs[i, j], central_longitude=180, add_bar=False, **SSTA_ARGS[j]
             )
-            im = out["im"]
+            ims[j] = out["im"]
             gpl.plot_contour(comp["ssha"], ax=axs[i, j], central_longitude=180, **SSHA_ARGS)
             out["gl"].bottom_labels = i == len(rows) - 1
         axs[i, 0].text(
@@ -169,9 +174,16 @@ def main():
     axs[0, 0].set_title(r"W $-$ C")
     axs[0, 1].set_title(r"W $+$ C")
 
-    fig.colorbar(
-        im, ax=list(axs.ravel()), orientation="horizontal", fraction=0.04, pad=0.05, extend="both", label="SSTA [K]"
-    )
+    for j in range(2):
+        fig.colorbar(
+            ims[j],
+            ax=list(axs[:, j]),
+            orientation="horizontal",
+            fraction=0.04,
+            pad=0.05,
+            extend="both",
+            label="SSTA [K]",
+        )
 
     gpl.enumerate_axes(axs, pos_x=0.01, pos_y=0.95, fontsize="medium")
     save_figure(fig, f"fig7_enso_asymmetry_lag{tau}_month{init_month}.pdf", args.output)
